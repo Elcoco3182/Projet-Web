@@ -1,0 +1,44 @@
+# =====================
+#  Environnement
+# =====================
+.env
+.env.local
+.env.*.local
+
+# =====================
+#  Deno
+# =====================
+.deno/
+#deno.lock        # à retirer si tu veux versionner le lockfile (recommandé en équipe)
+
+# Cache Deno
+cache/
+
+# =====================
+#  PostgreSQL
+# =====================
+*.dump
+*.backup
+dumps/
+backups/
+pgdata/
+
+# =====================
+#  Logs
+# =====================
+*.log
+logs/
+
+# =====================
+#  Éditeurs & OS
+# =====================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# =====================
+#  Build / Cache
+# =====================
+dist/
+build/
