@@ -28,39 +28,36 @@ class Joueur {
         this.speed = 1;
     }
 
-    moveForward() {
-        const adjustedSpeed = this.speed + (this.level - 1);
-        const newX = this.x + Math.cos(this.rotation) * adjustedSpeed;
-        const newY = this.y + Math.sin(this.rotation) * adjustedSpeed;
-
-
-        if (!collidesWithObstacle(newX, newY, 40, 20) &&
-            newX >= 20 && newX <= mapWidth - 20 &&
-            newY >= 20 && newY <= mapHeight - 20) {
-        this.x = newX;
-        this.y = newY;
+    moveUp() {
+        const newY = this.y - this.speed;
+        if (!collidesWithObstacle(this.x, newY, 40, 20) &&
+            newY >= 20) {
+            this.y = newY;
         }
     }
 
-    moveBackward() {
-        const adjustedSpeed = (this.speed + (this.level - 1)) / 2;
-        const newX = this.x - Math.cos(this.rotation) * adjustedSpeed;
-        const newY = this.y - Math.sin(this.rotation) * adjustedSpeed;
-
-        if (!collidesWithObstacle(newX, newY, 40, 20) &&
-        newX >= 20 && newX <= mapWidth - 20 &&
-        newY >= 20 && newY <= mapHeight - 20) {
-            this.x = newX;
+    moveDown() {
+        const newY = this.y + this.speed;
+        if (!collidesWithObstacle(this.x, newY, 40, 20) &&
+            newY <= mapHeight - 20) {
             this.y = newY;
         }
     }
 
     moveLeft() {
-        this.rotation -= 0.05 * (this.speed / 2);
+        const newX = this.x - this.speed;
+        if (!collidesWithObstacle(newX, this.y, 40, 20) &&
+            newX >= 20) {
+            this.x = newX;
+        }
     }
 
     moveRight() {
-        this.rotation += 0.05 * (this.speed / 2);
+        const newX = this.x + this.speed;
+        if (!collidesWithObstacle(newX, this.y, 40, 20) &&
+            newX <= mapWidth - 20) {
+            this.x = newX;
+        }
     }
 
 // regarde si c la nuit
@@ -121,7 +118,7 @@ socket.onmessage = (event) => {
       }
       break;
     case "playerId":
-      localJoueur = new Joueur(data.startX, data.startY, 0);
+      localJoueur = new Joueur(data.startX, data.startY);
       localJoueur.id = data.playerId;
       break;
     case "mapSize":
@@ -219,20 +216,18 @@ function drawBorder(offsetX, offsetY) {
 }
 
 function gameLoop() {
-  requestAnimationFrame(gameLoop);
-  if (localJoueur != null) {
+    requestAnimationFrame(gameLoop);
+    if (localJoueur == null) return;
     if (localJoueur.died) return;
-    if (socket.readyState !== WebSocket.OPEN) {
-      return;
-    }
-    // Dans gameLoop, avant update() et draw()
-    if (keys.ArrowUp) localJoueur.moveForward();
-    if (keys.ArrowDown) localJoueur.moveBackward();
+    if (socket.readyState !== WebSocket.OPEN) return;
+
+    if (keys.ArrowUp) localJoueur.moveUp();
+    if (keys.ArrowDown) localJoueur.moveDown();
     if (keys.ArrowLeft) localJoueur.moveLeft();
     if (keys.ArrowRight) localJoueur.moveRight();
+
     update();
     draw();
-  }
 }
 
 window.addEventListener('resize', function() {
@@ -262,7 +257,7 @@ function setJoueurAttributes(JoueurRole) {
 // à changer pour recup le rôle du joueur
 document.getElementById("joueurTypeForm").addEventListener("submit", (event) => {
   event.preventDefault();
-  const joueurType = document.getElementById("tankType").value;
+  const joueurType = document.getElementById("joueurType").value;
   setJoueurAttributes(joueurType);
   document.getElementById("popup").style.display = "none";
   canvas.style.display = "block";
