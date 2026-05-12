@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY deno.json* deno.lock* ./
 
-RUN deno cache src/scripts/back.ts || true
+RUN deno cache src/scripts/back.ts
 
 COPY . .
 

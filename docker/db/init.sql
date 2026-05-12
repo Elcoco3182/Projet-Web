@@ -1,0 +1,9 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL
+);
+
+CREATE TABLE role (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
