@@ -1,0 +1,5 @@
+git status # donne les infos du reportoire local
+git branch <nom_de_la_nouvelle_branch> # cree une branche local
+git switch <nom_branch> # deplace vers la branch
+git push --set-upstream origin <nom_branch> # link avec le depo distant la nouvelle branch cree
+git branch -D <branch_name> # supp un branch local
