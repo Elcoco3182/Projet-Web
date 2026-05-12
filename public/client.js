@@ -9,8 +9,6 @@ let players = [];
 let obstacles = [];
 let localJoueur = null;
 
-let __health = 100;
-
 canvas.width = window.innerWidth - 30;
 canvas.height = window.innerHeight - 30;
 
