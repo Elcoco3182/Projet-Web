@@ -1,0 +1,56 @@
+services:
+
+  back:
+    build:
+      context: .
+      dockerfile: ./docker/back/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - frontNetwork
+
+  api:
+    build:
+      context: .
+      dockerfile: ./docker/api/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - frontNetwork
+      - backNetwork
+
+  db:
+    build:
+      context: .
+      dockerfile: ./docker/db/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - backNetwork
+
+volumes:
+  db-data:
+
+networks:
+  frontNetwork:
+    driver: bridge
+  backNetwork:
+    driver: bridge
+    internal: true
