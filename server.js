@@ -58,8 +58,8 @@ wss.on("connection", (ws) => {
       case "disconnect":
         players.delete(playerId);
         break;
-      case "activatePlayer": 
-        activatePlayer(playerId);
+      case "activatePlayer":
+        activatePlayer(playerId, data.joueurType);
         break;
       case "kill":
         tryKill(playerId, data.targetId);
@@ -94,10 +94,11 @@ function updatePlayer(playerId, data) {
   }
 }
 
-function activatePlayer(playerId) {
+function activatePlayer(playerId, joueurType) {
   let player = players.get(playerId);
   if (player) {
     player.active = true;
+    player.type = joueurType;
   }
 }
 
@@ -164,6 +165,7 @@ function tryKill(attackerId, targetId) {
 
     if (!attacker || !target) return;
     if (!attacker.active || !target.active) return;
+    if(target.type=="assassin") return;
 
     const dx = attacker.x - target.x;
     const dy = attacker.y - target.y;
