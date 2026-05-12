@@ -23,7 +23,7 @@ class Joueur {
         this.x = x;
         this.y = y;
         this.died = false;
-        this.speed = 1;
+        this.speed = 1; 
     }
 
     moveUp() {
@@ -60,7 +60,7 @@ class Joueur {
 
 // regarde si c la nuit
     canKill() {
-        return 1;
+        return 1 && (localJoueur.type=="assassin");
     }
     tryKill() {
         // Cherche un joueur proche dans la liste reçue du serveur
@@ -68,7 +68,7 @@ class Joueur {
             if (p.id === localJoueur.id) return false;
             const dx = p.x - localJoueur.x;
             const dy = p.y - localJoueur.y;
-            return Math.sqrt(dx*dx + dy*dy) < 50; // portée de 50px
+            return (Math.sqrt(dx*dx + dy*dy) < 80); // portée de 50px
         });
 
         if (target && this.canKill()) {
@@ -262,6 +262,7 @@ document.getElementById("joueurTypeForm").addEventListener("submit", (event) => 
 
   const data = {
     type: "activatePlayer",
+    joueurType: joueurType,
   };
   socket.send(JSON.stringify(data));
 });
