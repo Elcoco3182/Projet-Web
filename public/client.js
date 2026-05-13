@@ -1,5 +1,5 @@
 const serverPort = location.port || 8080;
-const socket = new WebSocket(`ws://${location.hostname}:${serverPort}`);
+const socket = new WebSocket(`ws://${location.hostname}:${serverPort}/ws`);
 let canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -8,8 +8,6 @@ let mapWidth, mapHeight;
 let players = [];
 let obstacles = [];
 let localJoueur = null;
-
-let __health = 100;
 
 canvas.width = window.innerWidth - 30;
 canvas.height = window.innerHeight - 30;
@@ -25,7 +23,7 @@ class Joueur {
         this.x = x;
         this.y = y;
         this.died = false;
-        this.speed = 1;
+        this.speed = 1; 
     }
 
     moveUp() {
@@ -62,7 +60,7 @@ class Joueur {
 
 // regarde si c la nuit
     canKill() {
-        return 1;
+        return 1 && (localJoueur.type==="assassin");
     }
     tryKill() {
         // Cherche un joueur proche dans la liste reçue du serveur
@@ -70,7 +68,7 @@ class Joueur {
             if (p.id === localJoueur.id) return false;
             const dx = p.x - localJoueur.x;
             const dy = p.y - localJoueur.y;
-            return Math.sqrt(dx*dx + dy*dy) < 50; // portée de 50px
+            return (Math.sqrt(dx*dx + dy*dy) < 80); // portée de 50px
         });
 
         if (target && this.canKill()) {
@@ -252,7 +250,7 @@ function setJoueurAttributes(JoueurRole) {
       localJoueur.speed = 4;
       break;
   }
-};
+}
 
 // à changer pour recup le rôle du joueur
 document.getElementById("joueurTypeForm").addEventListener("submit", (event) => {
@@ -264,6 +262,7 @@ document.getElementById("joueurTypeForm").addEventListener("submit", (event) => 
 
   const data = {
     type: "activatePlayer",
+    joueurType: joueurType,
   };
   socket.send(JSON.stringify(data));
 });

@@ -1,5 +1,8 @@
 {
-  "imports": {
+  "tasks": {
+    "start": "deno run --allow-net --allow-read server.ts"
+  },
+    "imports": {
     "@db/postgres": "jsr:@db/postgres@^0.19.5"
   },
   "compilerOptions": {
