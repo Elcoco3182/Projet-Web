@@ -1,5 +1,5 @@
 const serverPort = location.port || 8080;
-const socket = new WebSocket(`ws://${location.hostname}:${serverPort}`);
+const socket = new WebSocket(`ws://${location.hostname}:${serverPort}/ws`);
 let canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
