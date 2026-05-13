@@ -2,7 +2,6 @@
   "version": "5",
   "specifiers": {
     "jsr:@db/postgres@*": "0.19.5",
-    "jsr:@db/postgres@~0.19.5": "0.19.5",
     "jsr:@oak/commons@1": "1.0.1",
     "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/bytes@1": "1.0.6",
@@ -24,19 +23,19 @@
     "@db/postgres@0.19.5": {
       "integrity": "afdbe608bd066cda2ee5dba37c416d332098b9238c51aec223331108e281954c",
       "dependencies": [
-        "jsr:@std/bytes",
-        "jsr:@std/crypto",
-        "jsr:@std/encoding",
+        "jsr:@std/bytes@^1.0.5",
+        "jsr:@std/crypto@^1.0.4",
+        "jsr:@std/encoding@^1.0.9",
         "jsr:@std/fmt",
-        "jsr:@std/path"
+        "jsr:@std/path@^1.0.8"
       ]
     },
     "@oak/commons@1.0.1": {
       "integrity": "889ff210f0b4292591721be07244ecb1b5c118742f5273c70cf30d7cd4184d0c",
       "dependencies": [
         "jsr:@std/assert",
-        "jsr:@std/bytes",
-        "jsr:@std/crypto",
+        "jsr:@std/bytes@1",
+        "jsr:@std/crypto@1",
         "jsr:@std/encoding@1",
         "jsr:@std/http",
         "jsr:@std/media-types"
@@ -81,17 +80,13 @@
       "integrity": "sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ=="
     }
   },
-  "redirects": {
-    "https://deno.land/x/oak/mod.ts": "https://deno.land/x/oak@v17.2.0/mod.ts",
-    "https://deno.land/x/oak/send.ts": "https://deno.land/x/oak@v17.2.0/send.ts"
-  },
   "remote": {
     "https://deno.land/std@0.188.0/_util/asserts.ts": "178dfc49a464aee693a7e285567b3d0b555dc805ff490505a8aae34f9cfb1462",
     "https://deno.land/std@0.188.0/_util/os.ts": "d932f56d41e4f6a6093d56044e29ce637f8dcc43c5a90af43504a889cf1775e3",
     "https://deno.land/std@0.188.0/path/_constants.ts": "e49961f6f4f48039c0dfed3c3f93e963ca3d92791c9d478ac5b43183413136e0",
     "https://deno.land/std@0.188.0/path/_interface.ts": "6471159dfbbc357e03882c2266d21ef9afdb1e4aa771b0545e90db58a0ba314b",
     "https://deno.land/std@0.188.0/path/_util.ts": "d7abb1e0dea065f427b89156e28cdeb32b045870acdf865833ba808a73b576d0",
-    "https://deno.land/std@0.188.0/path/common.ts": "ee7505ab01fd22de3963b64e46cff31f40de34f9f8de1fff6a1bd6a2fe79380000",
+    "https://deno.land/std@0.188.0/path/common.ts": "ee7505ab01fd22de3963b64e46cff31f40de34f9f8de1fff6a1bd2fe79380000",
     "https://deno.land/std@0.188.0/path/glob.ts": "d479e0a695621c94d3fd7fe7abd4f9499caf32a8de13f25073451c6ef420a4e1",
     "https://deno.land/std@0.188.0/path/mod.ts": "ee161baec5ded6510ee1d1fb6a75a0f5e4b41f3f3301c92c716ecbdf7dae910d",
     "https://deno.land/std@0.188.0/path/posix.ts": "8b7c67ac338714b30c816079303d0285dd24af6b284f7ad63da5b27372a2c94d",

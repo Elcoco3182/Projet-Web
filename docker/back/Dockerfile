@@ -1,13 +1,13 @@
-FROM denoland/deno:2.2.0
+FROM denoland/deno:2.5.0
 
 WORKDIR /app
 
 COPY deno.json* deno.lock* ./
 
-RUN deno cache src/scripts/back.ts
+RUN deno cache server.ts
 
 COPY . .
 
-EXPOSE 3000
+EXPOSE 8080
 
-CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "src/scripts/back.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "server.ts"]
