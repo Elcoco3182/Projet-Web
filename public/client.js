@@ -3,14 +3,21 @@ const socket = new WebSocket(`ws://${location.hostname}:${serverPort}/ws`);
 let canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+let canvasNight = document.createElement("canvas");
+const ctxNight = canvasNight.getContext("2d");
+
 let mapWidth, mapHeight;
 
 let players = [];
 let obstacles = [];
 let localJoueur = null;
+let isNight = false;
 
 canvas.width = window.innerWidth - 30;
 canvas.height = window.innerHeight - 30;
+
+canvasNight.width = canvas.width;
+canvasNight.height = canvas.height;
 
 let viewportWidth = canvas.width;
 let viewportHeight = canvas.height;
@@ -83,23 +90,32 @@ let keys = {
     ArrowRight: false,
     ArrowLeft: false,
     ArrowDown: false,
+    Spacebar: false,
 };
 
 document.addEventListener("keydown", (e) => {
   if (!localJoueur) return;
-
+  
   if (keys.hasOwnProperty(e.key)) {
     keys[e.key] = true;
   }
-  
+
   if (e.key === " ") {
-    localJoueur.tryKill();
+    keys["Spacebar"] = true;
+  }
+
+  if (e.key === "n") {
+    socket.send(JSON.stringify({ type: "toggleNight"}));
   }
 });
 
 document.addEventListener("keyup", (e) => {
   if (keys.hasOwnProperty(e.key)) {
     keys[e.key] = false;
+  }
+
+  if (e.key === " ") {
+    keys["Spacebar"] = false;
   }
 });
 
@@ -109,6 +125,7 @@ socket.onmessage = (event) => {
     case "update":
       players = data.players;
       obstacles = data.obstacles;
+      isNight = data.isNight;
       break;
     case "killed":
       if (data.playerId === localJoueur.id) {
@@ -162,6 +179,11 @@ function draw() {
   });
 
   ctx.restore();
+
+  if (isNight) {
+    applyNightMask(ctxNight, localJoueur.x - offsetX, localJoueur.y - offsetY, 150);
+    ctx.drawImage(canvasNight, 0, 0);
+  }
 }
 
 //à changer en drawJoueur
@@ -224,6 +246,8 @@ function gameLoop() {
     if (keys.ArrowLeft) localJoueur.moveLeft();
     if (keys.ArrowRight) localJoueur.moveRight();
 
+    if (keys.Spacebar) localJoueur.tryKill();
+
     update();
     draw();
 }
@@ -231,6 +255,9 @@ function gameLoop() {
 window.addEventListener('resize', function() {
   canvas.width = window.innerWidth - 25;
   canvas.height = window.innerHeight - 25;
+
+  canvasNight.width = canvas.width;
+  canvasNight.height = canvas.height;
 
   viewportWidth = canvas.width;
   viewportHeight = canvas.height;
@@ -241,13 +268,16 @@ function setJoueurAttributes(JoueurRole) {
   localJoueur.type = JoueurRole;
   switch (JoueurRole) {
     case "assassin":
-      localJoueur.speed = 6;
+      localJoueur.speed = 8;
       break;
     case "innocent":
-      localJoueur.speed = 4;
+      localJoueur.speed = 8;
+      break;
+    case "petiteFille":
+      localJoueur.speed = 8;
       break;
     default:
-      localJoueur.speed = 4;
+      localJoueur.speed = 8;
       break;
   }
 };
@@ -296,6 +326,35 @@ function displayErrorMessage(message) {
   messageElement.innerText = message;
 
   document.body.appendChild(messageElement);
+}
+
+function applyNightMask(ctxNight, px, py, radius) {
+  var rad = radius;
+  if (localJoueur.type == "assassin"){
+    rad *= 1.7;
+  }
+  else if (localJoueur.type == "petiteFille"){
+    rad *= 2.5;
+  }
+  ctxNight.save();
+
+  ctxNight.clearRect(0, 0, canvasNight.width, canvasNight.height);
+  
+  // Couche noire totale
+  ctxNight.fillStyle = 'rgba(0, 0, 0, 0.95)';
+  ctxNight.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Trou circulaire avec dégradé
+  ctxNight.globalCompositeOperation = 'destination-out';
+  const gradient = ctxNight.createRadialGradient(px, py, rad * 0.6, px, py, rad);
+  gradient.addColorStop(0, 'rgba(0,0,0,1)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  ctxNight.fillStyle = gradient;
+  ctxNight.beginPath();
+  ctxNight.arc(px, py, rad, 0, Math.PI * 2);
+  ctxNight.fill();
+  
+  ctxNight.restore();
 }
 
 socket.onerror = (error) => {

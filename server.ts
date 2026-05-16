@@ -10,10 +10,11 @@ const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
 const router = new Router();
 const app = new Application();
 let sockets = new Map();
+let isNight = false;
 
 
-const mapHeight = Math.random() * 1000 + 1000;
-const mapWidth = Math.random() * 1000 + 1000;
+const mapHeight = 4000;
+const mapWidth = 2000;
 
 let players = new Map();
 let obstacles = generateRandomObstacles(); 
@@ -59,6 +60,10 @@ router.get("/ws", (ctx) => {
         case "kill":
           tryKill(playerId, data.targetId);
           break;
+        case "toggleNight":
+          isNight = !isNight;
+          sendNight(playerId);
+          break;
       }
     };
 
@@ -73,6 +78,7 @@ router.get("/ws", (ctx) => {
           type: "update",
           players: Array.from(players.values()),
           obstacles: obstacles,
+          isNight: isNight,
         })
       );
     }, 1000 / 60);
@@ -106,6 +112,15 @@ function activatePlayer(playerId, joueurType) {
 
 function sendKilled(playerId) {
     const data = JSON.stringify({ type: "killed", playerId });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+}
+
+function sendNight(playerId) {
+    const data = JSON.stringify({ type: "toggleNight", playerId });
     sockets.forEach((client) => {
         if (client.readyState === 1 ) {
             client.send(data);
