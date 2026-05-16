@@ -67,7 +67,7 @@ class Joueur {
 
 // regarde si c la nuit
     canKill() {
-        return 1 && (localJoueur.type=="assassin");
+        return isNight && (localJoueur.type=="assassin");
     }
     tryKill() {
         // Cherche un joueur proche dans la liste reçue du serveur
@@ -171,7 +171,7 @@ function draw() {
   ctx.translate(-offsetX, -offsetY);
   drawBorder(offsetX, offsetY);
   players.forEach((player) => {
-    drawJoueur(player.x, player.y);
+    drawJoueur(player.x, player.y, player.type);
   });
 
   obstacles.forEach((obstacle) => {
@@ -187,12 +187,27 @@ function draw() {
 }
 
 //à changer en drawJoueur
-function drawJoueur(x, y) {
+function drawJoueur(x, y, type){
   ctx.save();
   ctx.translate(x, y);
 
-  // Draw the body of the player
-  ctx.fillStyle = "green";
+  //  Draw the body of the player
+  if (isNight){
+    switch (type) {
+      case "assassin":
+        ctx.fillStyle = "red";
+        break;  // ← sans ça, il continue et écrase avec "green"
+      case "innocent":
+        ctx.fillStyle = "green";
+        break;
+      case "petiteFille":
+        ctx.fillStyle = "blue";
+        break;
+    }
+  }
+  else {
+    ctx.fillStyle = "green";
+  }
   ctx.fillRect(-20, -10, 40, 20);
 
   ctx.restore();

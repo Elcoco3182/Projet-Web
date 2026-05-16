@@ -13,8 +13,8 @@ let sockets = new Map();
 let isNight = false;
 
 
-const mapHeight = 4000;
-const mapWidth = 2000;
+const mapHeight = 700;
+const mapWidth = 1200;
 
 let players = new Map();
 let obstacles = generateRandomObstacles(); 
