@@ -5,11 +5,16 @@ services:
       context: .
       dockerfile: ./docker/back/Dockerfile
     ports:
-      - "3000:3000"
+      # MODIFIÉ : était "3000:3000" → devient "8080:8080"
+      # back.ts est le serveur de fichiers statiques (login.html, client.js...),
+      # il écoute sur le port 8080 (FRONT_PORT dans .env).
+      # Le port 3000 est réservé à l'API d'authentification.
+      - "8080:8080"
     env_file:
       - .env
-    depends_on:
-      - api
+    # supression : depends_on: api
+    # back.ts sert uniquement des fichiers statiques — il n'a pas besoin
+    # que l'API soit démarrée pour fonctionner
     restart: unless-stopped
     networks:
       - frontNetwork
@@ -18,6 +23,9 @@ services:
     build:
       context: .
       dockerfile: ./docker/api/Dockerfile
+    #Rajout du port 3000 qui n'était pas exposé vers l'extérieur
+    ports:
+      -"3000:3000"
     env_file:
       - .env
     depends_on:
@@ -40,7 +48,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     restart: unless-stopped
     networks:
       - backNetwork
