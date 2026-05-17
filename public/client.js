@@ -16,6 +16,12 @@ let viewportHeight = canvas.height;
 
 canvas.style.display = "none";
 
+
+// Affiche que la connexion (ws) est en train de se faire
+const submitBtn = document.querySelector("#joueurTypeForm button");
+submitBtn.disabled = true;
+submitBtn.textContent = "Connexion...";
+
 class Joueur {
     constructor(x, y) {
         this.id = 0;
@@ -139,6 +145,8 @@ socket.onmessage = (event) => {
 };
 
 socket.onopen = () => {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Start Game";
     gameLoop();
 };
 
