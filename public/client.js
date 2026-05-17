@@ -11,7 +11,13 @@ let mapWidth, mapHeight;
 let players = [];
 let obstacles = [];
 let localJoueur = null;
+
+// des booleans pour savoir à quel moment du cycle jour nuit on est
+let isMorning = false;
+let isNoon = false;
+let isAfternoon = false;
 let isNight = false;
+let isMidnight = false;
 
 canvas.width = window.innerWidth - 30;
 canvas.height = window.innerHeight - 30;

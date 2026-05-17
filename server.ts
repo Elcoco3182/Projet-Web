@@ -10,7 +10,13 @@ const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
 const router = new Router();
 const app = new Application();
 let sockets = new Map();
+
+// des booleans pour savoir à quel moment du cycle jour nuit on est
+let isMorning = false;
+let isNoon = false;
+let isAfternoon = false;
 let isNight = false;
+let isMidnight = false;
 
 
 const mapHeight = 700;
@@ -62,7 +68,7 @@ router.get("/ws", (ctx) => {
           break;
         case "toggleNight":
           isNight = !isNight;
-          sendNight(playerId);
+          switchNight(playerId);
           break;
       }
     };
@@ -119,7 +125,11 @@ function sendKilled(playerId) {
     });
 }
 
-function sendNight(playerId) {
+// cette fonction est destiné à disparaitre
+function switchNight(playerId) {
+    if (!isNight){
+      isMidnight = true;
+    }
     const data = JSON.stringify({ type: "toggleNight", playerId });
     sockets.forEach((client) => {
         if (client.readyState === 1 ) {
@@ -127,6 +137,18 @@ function sendNight(playerId) {
         }
     });
 }
+
+function switchDayTime(playerId) {
+  if (!isNight){
+      const data = JSON.stringify({ type: "toggleNight", playerId });
+      sockets.forEach((client) => {
+          if (client.readyState === 1 ) {
+              client.send(data);
+          }
+      });
+    }
+}
+
 
 function generateRandomObstacles() {
   const obstacles = [];
