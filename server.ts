@@ -1,6 +1,4 @@
 import { Application, Router } from "jsr:@oak/oak";
-import { send } from "jsr:@oak/oak/send";
-import * as path from "jsr:@std/path";
 
 // ==================== CONFIG DB ====================
 
@@ -20,8 +18,6 @@ async function fetchWithRetry(url: string, options?: RequestInit, retries = 5, d
 }
 
 // ==================== CONFIG SERVEUR ====================
-
-const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
 
 const router = new Router();
 const app = new Application();
@@ -159,9 +155,7 @@ router.get("/ws", (ctx) => {
 
 // ==================== FICHIERS STATIQUES ====================
 
-router.get("/(.*)", async (ctx) => {
-  await send(ctx, ctx.request.url.pathname, { root: path.join(__dirname, "public") });
-});
+// Fait maintenant dans src/scripts/front.ts
 
 // ==================== FONCTIONS JEU ====================
 
@@ -259,7 +253,7 @@ function getRandomSpawnPoint(): { x: number; y: number } {
 
 // ==================== DÉMARRAGE ====================
 
-console.log("Server listening on port 8080");
+console.log("Server listening on port 3000");
 app.use(router.routes());
 app.use(router.allowedMethods());
-await app.listen({ port: 8080 });
+await app.listen({ port: 3000 });

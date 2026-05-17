@@ -1,15 +1,30 @@
 services:
 
-  back:
+
+  front:
     build:
       context: .
-      dockerfile: ./docker/back/Dockerfile
+      dockerfile: ./docker/front/Dockerfile
     ports:
       - "8080:8080"
     env_file:
       - .env
     depends_on:
-      api:
+      - back
+    restart: unless-stopped
+    networks:
+      - frontNetwork
+
+  back:
+    build:
+      context: .
+      dockerfile: ./docker/back/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      api :
         condition: service_healthy
     restart: unless-stopped
     networks:
