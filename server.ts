@@ -44,6 +44,15 @@ try {
   console.error("Impossible de créer la partie :", err);
 }
 
+
+// ==================== HEALTHCHECK ====================
+
+router.get("/health", (ctx) => {
+  ctx.response.status = 200;
+  ctx.response.body = "ok";
+});
+
+
 // ==================== WEBSOCKET ====================
 
 router.get("/ws", (ctx) => {

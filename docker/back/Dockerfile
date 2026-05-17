@@ -2,12 +2,12 @@ FROM denoland/deno:2.5.0
 
 WORKDIR /app
 
-COPY deno.json* deno.lock* ./
+COPY . .
 
 RUN deno cache server.ts
 
-COPY . .
+EXPOSE 3000
 
-EXPOSE 8080
+USER deno
 
-CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "server.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read=./deno.json", "server.ts"]
