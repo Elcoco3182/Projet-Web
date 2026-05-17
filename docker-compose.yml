@@ -9,7 +9,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - frontNetwork
@@ -23,6 +24,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "deno", "eval", "await fetch('http://localhost:8000/health').then(r => r.ok ? Deno.exit(0) : Deno.exit(1)).catch(() => Deno.exit(1))"]
+      interval: 5s
+      timeout: 10s
+      retries: 105
+      start_period: 15s
     restart: unless-stopped
     networks:
       - frontNetwork

@@ -1,0 +1,14 @@
+// Arreter docker en SUPPRIMANT les VOLUMES
+docker compose down -v
+
+// Arreter docker en GARDANT les VOLUMES
+docker compose down
+
+// BUILD docker
+docker compose build
+
+// DEMARRER docker
+docker compose up
+
+// faire les 2
+docker compose up --build

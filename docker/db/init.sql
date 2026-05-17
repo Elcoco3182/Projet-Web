@@ -1,9 +1,37 @@
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email TEXT NOT NULL
+CREATE TABLE users
+(
+    id     SERIAL PRIMARY KEY,
+    pseudo VARCHAR(100) NOT NULL,
+    email  VARCHAR(100) NOT NULL UNIQUE
 );
 
-CREATE TABLE role (
-    id SERIAL PRIMARY KEY,
+CREATE TABLE roles
+(
+    id   SERIAL PRIMARY KEY,
     name TEXT NOT NULL
 );
+
+CREATE TABLE parties
+(
+    id         SERIAL PRIMARY KEY,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at   TIMESTAMPTZ
+);
+
+CREATE TABLE historiques
+(
+    id        SERIAL PRIMARY KEY,
+    user_id   INT REFERENCES users (id) ON DELETE CASCADE,
+    party_id  INT REFERENCES parties (id) ON DELETE CASCADE,
+    role_id   INT REFERENCES roles (id) ON DELETE SET NULL
+);
+
+-- Données initiales
+INSERT INTO users
+VALUES (1, 'coco', 'pasdemail'),
+       (2, 'personne', 'toujourspasdemail@gmail.com');
+
+INSERT INTO roles
+VALUES (1, 'innocent'),
+       (2, 'assassin'),
+       (3, 'detective');
