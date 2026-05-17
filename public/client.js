@@ -73,7 +73,7 @@ class Joueur {
 
 // regarde si c la nuit
     canKill() {
-        return isNight && (localJoueur.type=="assassin");
+        return isMidnight && (localJoueur.type=="assassin");
     }
     tryKill() {
         // Cherche un joueur proche dans la liste reçue du serveur
@@ -109,10 +109,6 @@ document.addEventListener("keydown", (e) => {
   if (e.key === " ") {
     keys["Spacebar"] = true;
   }
-
-  if (e.key === "n") {
-    socket.send(JSON.stringify({ type: "toggleNight"}));
-  }
 });
 
 document.addEventListener("keyup", (e) => {
@@ -131,7 +127,6 @@ socket.onmessage = (event) => {
     case "update":
       players = data.players;
       obstacles = data.obstacles;
-      isNight = data.isNight;
       break;
     case "killed":
       if (data.playerId === localJoueur.id) {
@@ -145,6 +140,26 @@ socket.onmessage = (event) => {
     case "mapSize":
       mapWidth = data.width;
       mapHeight = data.height;
+      break;
+    case "isMorning":
+      isMidnight = false;
+      isMorning = true;
+      break;
+    case "isNoon":
+      isMorning = false;
+      isNoon = true;
+      break;
+    case "isAfternoon":
+      isNoon = false;
+      isAfternoon = true;
+      break;
+    case "isNight":
+      isAfternoon = false;
+      isNight = true;
+      break;
+    case "isMidnight":
+      isNight = false;
+      isMidnight = true;
       break;
   }
 };
@@ -163,6 +178,9 @@ function update() {
 }
 
 function draw() {
+
+  document.getElementById("dayTime").innerText = getCurrentDayTime();
+
   ctx.fillStyle = "gray";
   ctx.fillRect(0, 0, viewportWidth, viewportHeight);
 
@@ -186,7 +204,7 @@ function draw() {
 
   ctx.restore();
 
-  if (isNight) {
+  if (isNight || isMidnight) {
     applyNightMask(ctxNight, localJoueur.x - offsetX, localJoueur.y - offsetY, 150);
     ctx.drawImage(canvasNight, 0, 0);
   }
@@ -198,7 +216,7 @@ function drawJoueur(x, y, type){
   ctx.translate(x, y);
 
   //  Draw the body of the player
-  if (isNight){
+  if (isMidnight){
     switch (type) {
       case "assassin":
         ctx.fillStyle = "red";
@@ -376,6 +394,15 @@ function applyNightMask(ctxNight, px, py, radius) {
   ctxNight.fill();
   
   ctxNight.restore();
+}
+
+function getCurrentDayTime() {
+  if (isMorning) return "Matin";
+  if (isNoon) return "Midi";
+  if (isAfternoon) return "Après-midi";
+  if (isNight) return "Nuit";
+  if (isMidnight) return "Minuit";
+  return "Inconnu";
 }
 
 socket.onerror = (error) => {

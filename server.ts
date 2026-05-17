@@ -14,7 +14,7 @@ let sockets = new Map();
 // des booleans pour savoir à quel moment du cycle jour nuit on est
 let isMorning = false;
 let isNoon = false;
-let isAfternoon = false;
+let isAfternoon = true;
 let isNight = false;
 let isMidnight = false;
 
@@ -24,6 +24,10 @@ const mapWidth = 1200;
 
 let players = new Map();
 let obstacles = generateRandomObstacles(); 
+
+setInterval(() => {
+    switchDayTime();
+}, 4_000); // on switch de phase toute les minutes pour l(instant toute les 1à sec pour des test)
 
 console.log("Server listening on port 8080");
 
@@ -49,6 +53,7 @@ router.get("/ws", (ctx) => {
     ws.onopen = () => { 
       ws.send(JSON.stringify({ type: "playerId", playerId, startX: spawnPoint.x, startY: spawnPoint.y }));
       ws.send(JSON.stringify({ type: "mapSize", height: mapHeight, width: mapWidth }));
+      ws.send(JSON.stringify({ type: getCurrentDayTime()}));
     };
     
     ws.onmessage = (event) => {
@@ -66,10 +71,6 @@ router.get("/ws", (ctx) => {
         case "kill":
           tryKill(playerId, data.targetId);
           break;
-        case "toggleNight":
-          isNight = !isNight;
-          switchNight(playerId);
-          break;
       }
     };
 
@@ -84,7 +85,6 @@ router.get("/ws", (ctx) => {
           type: "update",
           players: Array.from(players.values()),
           obstacles: obstacles,
-          isNight: isNight,
         })
       );
     }, 1000 / 60);
@@ -125,28 +125,57 @@ function sendKilled(playerId) {
     });
 }
 
-// cette fonction est destiné à disparaitre
-function switchNight(playerId) {
-    if (!isNight){
-      isMidnight = true;
-    }
-    const data = JSON.stringify({ type: "toggleNight", playerId });
+function switchDayTime() {
+  if (isMorning){
+    isMorning = false;
+    isNoon = true;
+    const data = JSON.stringify({ type: "isNoon" });
     sockets.forEach((client) => {
         if (client.readyState === 1 ) {
             client.send(data);
         }
     });
-}
-
-function switchDayTime(playerId) {
-  if (!isNight){
-      const data = JSON.stringify({ type: "toggleNight", playerId });
-      sockets.forEach((client) => {
-          if (client.readyState === 1 ) {
-              client.send(data);
-          }
-      });
-    }
+  }
+  else if (isNoon){
+    isNoon = false;
+    isAfternoon = true;
+    const data = JSON.stringify({ type: "isAfternoon" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
+  else if (isAfternoon){
+    isAfternoon = false;
+    isNight = true;
+    const data = JSON.stringify({ type: "isNight" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
+  else if (isNight){
+    isNight = false;
+    isMidnight = true;
+    const data = JSON.stringify({ type: "isMidnight" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
+  else if (isMidnight){
+    isMidnight = false;
+    isMorning = true;
+    const data = JSON.stringify({ type: "isMorning" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
 }
 
 
@@ -214,6 +243,15 @@ function tryKill(attackerId, targetId) {
 
     sendKilled(targetId);
     players.delete(targetId);
+}
+
+function getCurrentDayTime() {
+  if (isMorning) return "isMorning";
+  if (isNoon) return "isNoon";
+  if (isAfternoon) return "isAfternoon";
+  if (isNight) return "isNight";
+  if (isMidnight) return "isMidnight";
+  return "Inconnu";
 }
 
 app.use(router.routes());
