@@ -1,0 +1,31 @@
+
+.env
+.env.*
+# Exception : .env.example ne contient aucun vrai secret, on peut le garder
+!.env.example
+
+# ── Git───
+.git
+.gitignore
+
+
+# ── Logs ───
+*.log
+logs/
+
+# ── Éditeur ── 
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Node/npm — projet Deno, mais au cas où ces dossiers existent ──────
+node_modules/
+
+# ── Artefacts de build ────
+dist/
+coverage/
+
+# ── Fichiers systèmes ─────
+.DS_Store
+Thumbs.db
