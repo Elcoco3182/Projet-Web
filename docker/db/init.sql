@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
 CREATE TABLE roles
 (
     id   SERIAL PRIMARY KEY,
@@ -15,7 +16,7 @@ CREATE TABLE parties
     id         SERIAL PRIMARY KEY,
     started_at TIMESTAMPTZ DEFAULT NOW(),
     ended_at   TIMESTAMPTZ
-
+);
 
 CREATE TABLE historiques
 (

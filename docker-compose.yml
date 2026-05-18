@@ -24,6 +24,8 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      - DENO_DIR=/tmp/deno-cache
     depends_on:
       api :
         condition: service_healthy
@@ -51,7 +53,7 @@ services:
       test: ["CMD", "deno", "eval", "await fetch('http://localhost:8000/health').then(r => r.ok ? Deno.exit(0) : Deno.exit(1)).catch(() => Deno.exit(1))"]
       interval: 5s
       timeout: 10s
-      retries: 105
+      retries: 10
       start_period: 15s
     restart: unless-stopped
     networks:

@@ -2,11 +2,9 @@ FROM denoland/deno:alpine-2.5.0
 
 WORKDIR /app
 
-COPY deno.json* deno.lock* ./
-
-RUN deno cache src/scripts/api.ts || true
-
 COPY . .
+
+RUN deno cache src/scripts/api.ts
 
 EXPOSE 8000
 
