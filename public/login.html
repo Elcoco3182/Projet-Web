@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title> Minimal page </title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        
+        <h1> Welcome </h1>
+        <ul>
+            <li> Username  </li>
+
+        <div class="row_container">
+            <label for="username"></label> <input type="text" id="username">
+        </div>
+        
+        <li> Password  </li>
+        <div class="row_container">
+            <!-- MODIFIÉ : type="text" → type="password"
+                 Le mot de passe s'affichait en clair dans le navigateur.
+                 bcrypt peut aussi recevoir des caractères parasites selon le navigateur. -->
+            <label for="password"></label> <input type="password" id="password">
+        </div>
+        </ul>
+
+        <div>
+            <button id="login_button" onclick="VerifyUser();"> Login </button>
+            <!-- SUPPRIMÉ : bouton "cookie" qui appelait /test_cookie
+                 Cette route n'existe plus dans api.ts (remplacée par /verify).
+                 Le bouton provoquait une erreur 404 à chaque clic. -->
+        </div>
+    
+    </body>
+</html>

@@ -1,10 +1,9 @@
-CREATE TABLE users
-(
-    id     SERIAL PRIMARY KEY,
-    pseudo VARCHAR(100) NOT NULL,
-    email  VARCHAR(100) NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(30) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );
-
 CREATE TABLE roles
 (
     id   SERIAL PRIMARY KEY,
@@ -16,7 +15,7 @@ CREATE TABLE parties
     id         SERIAL PRIMARY KEY,
     started_at TIMESTAMPTZ DEFAULT NOW(),
     ended_at   TIMESTAMPTZ
-);
+
 
 CREATE TABLE historiques
 (
@@ -35,3 +34,6 @@ INSERT INTO roles
 VALUES (1, 'innocent'),
        (2, 'assassin'),
        (3, 'detective');
+
+-- Index sur username pour accélérer les lookups au login
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
