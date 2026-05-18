@@ -494,7 +494,7 @@ router.post("/login", async (ctx) => {
   // Message d'erreur identique dans les deux cas (user inexistant ou mauvais mdp)
   if (!fetchedUsername || !valid) {
     ctx.response.status = 401;
-    ctx.response.body   = { error: "Nom d'utilisateur ou mot de passe incorrect." };
+    ctx.response.body   = { error: "Nom d'utilisateur ou mot de passe incorrect."};
     return;
   }
 
