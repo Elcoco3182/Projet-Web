@@ -3,7 +3,7 @@ import { Application, Router } from "jsr:@oak/oak";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { create, verify } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 import bcrypt from "npm:bcryptjs@2.4.3";
-import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+//import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 
 
 
@@ -272,19 +272,8 @@ function getRandomSpawnPoint(): { x: number; y: number } {
 // Configuration depuis les variables d'environnement
 // ─────────────────────────────────────────────────────────────────────────────
 
-//vérification des variables d'environnement
-function requireEnv(name: string): string {
-  const value = Deno.env.get(name);
-  if (!value) {
-    console.error(`FATAL : la variable d'environnement "${name}" est manquante.`);
-    Deno.exit(1);
-  }
-  return value;
-}
-
-
 const PORT = parseInt(Deno.env.get("API_PORT") ?? "3000");
-const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN")?? "http://localhost:8080";
+const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "http://localhost:8080";
 
 // Vérification: le secret JWT doit être défini explicitement
 const JWT_SECRET = Deno.env.get("JWT_SECRET");
@@ -305,21 +294,6 @@ const secretKey = await crypto.subtle.importKey(
     { name: "HMAC", hash: "SHA-512" },
     false,
     ["sign", "verify"]
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Pool de connexions PostgreSQL
-// ─────────────────────────────────────────────────────────────────────────────
-
-const pool = new Pool(
-    {
-      hostname: Deno.env.get("POSTGRES_HOST")     ?? "db",
-      port:     parseInt(Deno.env.get("POSTGRES_PORT") ?? "5432"),
-      user:     Deno.env.get("POSTGRES_USER"),
-      password: Deno.env.get("POSTGRES_PASSWORD"),
-      database: Deno.env.get("POSTGRES_DB"),
-    },
-    5 // Taille du pool de connexions
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -357,30 +331,23 @@ function isRateLimited(ip: string): boolean {
 // Helpers cookie et token
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Pose le cookie JWT HttpOnly dans la réponse
-function setAuthCookie(ctx: Context, token: string): void {
-  // HttpOnly  : inaccessible depuis JavaScript (protection XSS)
-  // SameSite=Strict : non envoyé lors de requêtes cross-site (protection CSRF)
-  // Path=/    : valide sur tout le domaine
-  // Max-Age   : 24 heures
+function setAuthCookie(ctx: any, token: string): void {
   ctx.response.headers.set(
       "Set-Cookie",
       `auth_token=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`
   );
 }
 
-/** Efface le cookie JWT (logout) */
-function clearAuthCookie(ctx: Context): void {
+function clearAuthCookie(ctx: any): void {
   ctx.response.headers.set(
       "Set-Cookie",
       `auth_token=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`
   );
 }
 
-// Extrait le token depuis le header Cookie
-function getTokenFromCookie(ctx: Context): string | null {
+function getTokenFromCookie(ctx: any): string | null {
   const cookie = ctx.request.headers.get("cookie") ?? "";
-  const match  = cookie.split("; ").find((row) => row.startsWith("auth_token="));
+  const match  = cookie.split("; ").find((row: string) => row.startsWith("auth_token="));
   return match ? match.split("=")[1] : null;
 }
 
@@ -391,7 +358,6 @@ function getTokenFromCookie(ctx: Context): string | null {
 function validateUsername(username: string): string | null {
   if (!username || username.length < 3) return "Le nom d'utilisateur doit faire au moins 3 caractères.";
   if (username.length > 30)            return "Le nom d'utilisateur ne peut pas dépasser 30 caractères.";
-  //vérification avec expression régulière
   if (!/^[a-zA-Z0-9_]+$/.test(username))
     return "Le nom d'utilisateur ne peut contenir que des lettres, chiffres et underscores.";
   return null;
@@ -404,7 +370,7 @@ function validatePassword(password: string): string | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Routes
+// Routes d'authentification
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── POST /register ────────────────────────────────────────────────────────────
@@ -421,7 +387,6 @@ router.post("/register", async (ctx) => {
   const username = (body.username ?? "").trim();
   const password = body.password ?? "";
 
-  // Validation username
   const usernameError = validateUsername(username);
   if (usernameError) {
     ctx.response.status = 400;
@@ -429,7 +394,6 @@ router.post("/register", async (ctx) => {
     return;
   }
 
-  // Validation password
   const passwordError = validatePassword(password);
   if (passwordError) {
     ctx.response.status = 400;
@@ -437,41 +401,44 @@ router.post("/register", async (ctx) => {
     return;
   }
 
-  const client = await pool.connect();
+  // Hachage du mot de passe (reste dans server.ts, api.ts ne voit jamais le mot de passe en clair)
+  const salt          = await bcrypt.genSalt(12);
+  const password_hash = await bcrypt.hash(password, salt);
+
+  // Déléguer la persistance à api.ts
+  let res: Response;
   try {
-    // Vérifier si le username est déjà pris
-    const existing = await client.queryObject<{ id: number }>(
-        "SELECT id FROM users WHERE username = $1",
-        [username]
-    );
-    if (existing.rows.length > 0) {
-      ctx.response.status = 409;
-      ctx.response.body   = { error: "Ce nom d'utilisateur est déjà pris." };
-      return;
-    }
-
-    // Hasher le mot de passe  avant de l'insérer
-    const salt          = await bcrypt.genSalt(12);
-    const password_hash = await bcrypt.hash(password, salt);
-
-    // Insérer l'utilisateur dans la bd
-    await client.queryObject(
-        "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
-        [username, password_hash]
-    );
-
-    // Auto-login après inscription
-    const token = await create(
-        { alg: "HS512", typ: "JWT" },
-        { username },
-        secretKey
-    );
-    setAuthCookie(ctx, token);
-    ctx.response.status = 201;
-    ctx.response.body   = { message: "Compte créé avec succès.", username };
-  } finally {
-    client.release();
+    res = await fetchWithRetry(`${API_URL}/users/register`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ username, password_hash }),
+    });
+  } catch {
+    ctx.response.status = 503;
+    ctx.response.body   = { error: "Service indisponible, réessayez plus tard." };
+    return;
   }
+
+  if (res.status === 409) {
+    ctx.response.status = 409;
+    ctx.response.body   = { error: "Ce nom d'utilisateur est déjà pris." };
+    return;
+  }
+  if (!res.ok) {
+    ctx.response.status = 500;
+    ctx.response.body   = { error: "Erreur lors de la création du compte." };
+    return;
+  }
+
+  // Auto-login après inscription
+  const token = await create(
+      { alg: "HS512", typ: "JWT" },
+      { username },
+      secretKey
+  );
+  setAuthCookie(ctx, token);
+  ctx.response.status = 201;
+  ctx.response.body   = { message: "Compte créé avec succès.", username };
 });
 
 // ── POST /login ───────────────────────────────────────────────────────────────
@@ -502,44 +469,43 @@ router.post("/login", async (ctx) => {
     return;
   }
 
-  const client = await pool.connect();
+  // Récupérer le hash depuis api.ts
+  let userRes: Response | null = null;
   try {
-    const result = await client.queryObject<{
-      username: string;
-      password_hash: string;
-    }>(
-        "SELECT username, password_hash FROM users WHERE username = $1",
-        [username]
+    userRes = await fetchWithRetry(
+        `${API_URL}/users/by-username/${encodeURIComponent(username)}`
     );
-
-    const user = result.rows[0];
-
-    // Timing attack prevention :
-    // On exécute bcrypt.compare même si l'utilisateur n'existe pas,
-    // pour éviter qu'un attaquant mesure la différence de temps de réponse.
-    const hashToCheck = user?.password_hash ?? "$2a$12$invalide.hash.pour.eviter.timing.attaque";
-    const valid       = await bcrypt.compare(password, hashToCheck);
-
-    // Message d'erreur identique dans les deux cas (user inexistant ou mauvais mdp)
-    if (!user || !valid) {
-      ctx.response.status = 401;
-      ctx.response.body   = { error: "Nom d'utilisateur ou mot de passe incorrect." };
-      return;
-    }
-
-    //Authentification  réussie
-    const token = await create(
-        { alg: "HS512", typ: "JWT" },
-        { username: user.username },
-        secretKey
-    );
-    setAuthCookie(ctx, token);
-
-    ctx.response.status = 200;
-    ctx.response.body   = { message: "Connexion réussie.", username: user.username };
-  } finally {
-    client.release();
+  } catch {
+    // L'API est down — on continue avec un hash invalide pour éviter le timing attack
   }
+
+  let hashToCheck = "$2a$12$invalide.hash.pour.eviter.timing.attaque";
+  let fetchedUsername: string | null = null;
+
+  if (userRes?.ok) {
+    const userData = await userRes.json() as { username: string; password_hash: string };
+    hashToCheck     = userData.password_hash;
+    fetchedUsername = userData.username;
+  }
+
+  // Timing-safe : bcrypt.compare s'exécute même si l'utilisateur n'existe pas
+  const valid = await bcrypt.compare(password, hashToCheck);
+
+  // Message d'erreur identique dans les deux cas (user inexistant ou mauvais mdp)
+  if (!fetchedUsername || !valid) {
+    ctx.response.status = 401;
+    ctx.response.body   = { error: "Nom d'utilisateur ou mot de passe incorrect." };
+    return;
+  }
+
+  const token = await create(
+      { alg: "HS512", typ: "JWT" },
+      { username: fetchedUsername },
+      secretKey
+  );
+  setAuthCookie(ctx, token);
+  ctx.response.status = 200;
+  ctx.response.body   = { message: "Connexion réussie.", username: fetchedUsername };
 });
 
 // ── POST /logout ──────────────────────────────────────────────────────────────
@@ -550,7 +516,6 @@ router.post("/logout", (ctx) => {
 });
 
 // ── GET /verify ───────────────────────────────────────────────────────────────
-// Utilisé par le serveur de jeu pour valider qu'un joueur est bien authentifié
 router.get("/verify", async (ctx) => {
   const token = getTokenFromCookie(ctx);
   if (!token) {
@@ -560,13 +525,11 @@ router.get("/verify", async (ctx) => {
   }
 
   try {
-    const payload       = await verify(token, secretKey);
-
+    const payload = await verify(token, secretKey);
     ctx.response.status = 200;
     ctx.response.body   = { username: payload.username };
   } catch {
-    // Token invalide ou expiré
-    clearAuthCookie(ctx); // Nettoyer le cookie corrompu
+    clearAuthCookie(ctx);
     ctx.response.status = 401;
     ctx.response.body   = { error: "Token invalide ou expiré." };
   }
@@ -582,7 +545,7 @@ app.use(
       origin:         FRONT_ORIGIN,
       methods:        ["GET", "POST"],
       allowedHeaders: ["Content-Type"],
-      credentials:    true, // Nécessaire pour que les cookies soient envoyés
+      credentials:    true,
     })
 );
 
@@ -598,4 +561,4 @@ app.use(async (ctx, next) => {
 console.log("Server listening on port 3000");
 app.use(router.routes());
 app.use(router.allowedMethods());
-await app.listen({ port: 3000 });
+await app.listen({ port: PORT });

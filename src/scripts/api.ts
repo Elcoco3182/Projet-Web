@@ -37,12 +37,52 @@ Deno.serve({ port: 8000 }, async (req) => {
             return Response.json(users);
         }
 
+        // GET /users/by-username/:username
+        // Utilisé par server.ts lors du login pour récupérer le hash du mot de passe.
+        // Retourne uniquement les champs nécessaires à l'authentification (pas de données sensibles superflues).
+        if (req.method === "GET" && url.pathname.match(/^\/users\/by-username\/[^/]+$/)) {
+            const username = decodeURIComponent(url.pathname.split("/")[3]);
+            const rows = await query<{ id: number; username: string; password_hash: string }>(
+                "SELECT id, username, password_hash FROM users WHERE username = $1",
+                [username]
+            );
+            if (rows.length === 0) return Response.json({ error: "User not found" }, { status: 404 });
+            return Response.json(rows[0]);
+        }
+
         // GET /users/:id
         if (req.method === "GET" && url.pathname.match(/^\/users\/\d+$/)) {
             const id = url.pathname.split("/")[2];
             const rows = await query("SELECT * FROM users WHERE id = $1", [id]);
             if (rows.length === 0) return Response.json({ error: "User not found" }, { status: 404 });
             return Response.json(rows[0]);
+        }
+
+        // POST /users/register  { username, password_hash }
+        // Appelé par server.ts lors de l'inscription. Le hachage du mot de passe est
+        // effectué dans server.ts ; api.ts ne reçoit et ne stocke jamais le mot de passe en clair.
+        if (req.method === "POST" && url.pathname === "/users/register") {
+            const body = await req.json();
+            const { username, password_hash } = body;
+
+            if (!username || typeof username !== "string")
+                return Response.json({ error: "Nom d'utilisateur invalide" }, { status: 400 });
+            if (!password_hash || typeof password_hash !== "string")
+                return Response.json({ error: "Hash manquant" }, { status: 400 });
+
+            // Vérifier si le username est déjà pris
+            const existing = await query<{ id: number }>(
+                "SELECT id FROM users WHERE username = $1",
+                [username]
+            );
+            if (existing.length > 0)
+                return Response.json({ error: "Nom d'utilisateur déjà pris" }, { status: 409 });
+
+            const rows = await query<{ id: number; username: string }>(
+                "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username",
+                [username, password_hash]
+            );
+            return Response.json(rows[0], { status: 201 });
         }
 
         // POST /users  { pseudo, email }
