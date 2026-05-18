@@ -6,4 +6,7 @@ FROM postgres:16-alpine
 
 COPY ./docker/db/init.sql /docker-entrypoint-initdb.d/init.sql
 
+COPY docker/db/init.sql /docker-entrypoint-initdb.d/init.sql
+
 EXPOSE 5432
+
