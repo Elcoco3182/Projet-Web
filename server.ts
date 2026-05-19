@@ -227,7 +227,7 @@ async function giveRoleAll(){
 
   tabPlayer.forEach(async (playerId) => {
     // il  faut ici choisir un rôle aléatoirement
-    let role = rolePossible.charAt(i);
+    let role = rolePossible.charAt(tabInt[i]);
     let role_id = 0;
     switch (role) {
       case "a":
