@@ -24,6 +24,11 @@ async function fetchWithRetry(url: string, options?: RequestInit, retries = 5, d
   throw new Error(`API inaccessible après ${retries} tentatives`);
 }
 
+// ==================== Config chlag ======================
+
+// a = assassin p = petitefille i = innocent
+const roleSelonNbJoueur = ["","","","api","apii","apiii","aapiii","aappiii","aappiiii","aaapppiii","aaapppiiii"];
+
 // ==================== CONFIG SERVEUR ====================
 
 const router = new Router();
@@ -38,6 +43,7 @@ let isAfternoon = true;
 let isNight = false;
 let isMidnight = false;
 
+let gameState = "noConnected";
 
 const mapHeight = 700;
 const mapWidth = 1200;
@@ -54,15 +60,16 @@ console.log("Server listening on port 8080");
 // ==================== CRÉATION DE LA PARTIE ====================
 
 let currentPartyId: number | null = null;
-let partyStarted = false;
 
-try {
-  const partieRes = await fetchWithRetry(`${API_URL}/parties`, { method: "POST" });
-  const partie = await partieRes.json();
-  currentPartyId = partie.id;
-  console.log(`Partie créée : id=${currentPartyId}`);
-} catch (err) {
-  console.error("Impossible de créer la partie :", err);
+async function fecthPartiApi() {
+  try {
+    const partieRes = await fetchWithRetry(`${API_URL}/parties`, { method: "POST" });
+    const partie = await partieRes.json();
+    currentPartyId = partie.id;
+    console.log(`Partie créée : id=${currentPartyId}`);
+  } catch (err) {
+    console.error("Impossible de créer la partie :", err);
+  }
 }
 
 
@@ -80,9 +87,20 @@ router.get("/ws", (ctx) => {
   if (!ctx.isUpgradable) {
     ctx.throw(501);
   }
-
+  
   const ws = ctx.upgrade();
   const playerId = createPlayerId();
+
+  if (gameState === "playing") {
+    ws.send(JSON.stringify({type: "rejected"}));
+    ws.close(1008, "Partie en cours");
+    return;
+  }
+
+  if (gameState === "noConnected") {
+    gameState = "lobby";
+  }
+
   sockets.set(playerId, ws);
 
   const spawnPoint = getRandomSpawnPoint();
@@ -94,17 +112,17 @@ router.get("/ws", (ctx) => {
     width: 20,
     kills: 0,
     active: false,
+    ready: false,
   });
 
   ws.onopen = async () => {
     try {
-      const rolesRes = await fetchWithRetry(`${API_URL}/roles`);
-      const roles = await rolesRes.json();
-
+      //const rolesRes = await fetchWithRetry(`${API_URL}/roles`);
+      //const roles = await rolesRes.json();
       ws.send(JSON.stringify({ type: "playerId", playerId, startX: spawnPoint.x, startY: spawnPoint.y }));
       ws.send(JSON.stringify({ type: "mapSize", height: mapHeight, width: mapWidth }));
       ws.send(JSON.stringify({ type: getCurrentDayTime()}));
-      ws.send(JSON.stringify({ type: "roles", roles }));
+      //ws.send(JSON.stringify({ type: "roles", roles }));
     } catch (err) {
       console.error("Erreur onopen :", err);
     }
@@ -120,31 +138,18 @@ router.get("/ws", (ctx) => {
           case "disconnect":
             players.delete(playerId);
             break;
-          case "activatePlayer":{
-            activatePlayer(playerId, data.joueurType);
-          partyStarted = true;
-
-          const rolesRes = await fetchWithRetry(`${API_URL}/roles`);
-          const roles: { id: number; name: string }[] = await rolesRes.json();
-          const role = roles.find(r => r.name === data.joueurType);
-
-          if (role && currentPartyId) {
-            await fetchWithRetry(`${API_URL}/historiques`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                user_id: 1, // ← à remplacer quand tu auras un système de login
-                party_id: currentPartyId,
-                role_id: role.id,
-              }),
-            });
-            console.log(`Joueur ${playerId} enregistré avec le rôle ${data.joueurType}`);
-          }
+          case "activatePlayer":
+            activatePlayer(playerId);
             break;
-        }
-
           case "kill":
-          await tryKill(playerId, data.targetId);
+            await tryKill(playerId, data.targetId);
+            break;
+          case "setReady":
+            setReadyPlayer(playerId);
+            if (checkAllReady()) {
+              gameState = "playing";
+              startGame();
+            }
             break;
         }
       } catch (err) {
@@ -157,11 +162,11 @@ router.get("/ws", (ctx) => {
     sockets.delete(playerId);
 
     // Terminer la partie seulement si elle a commencé et qu'il n'y a plus personne
-    if (players.size === 0 && partyStarted && currentPartyId) {
+    if (players.size === 0 && gameState === "playing" && currentPartyId) {
       try {
         await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, { method: "PATCH" });
         console.log(`Partie ${currentPartyId} terminée`);
-        partyStarted = false;
+        gameState = "noConnected";
       } catch (err) {
         console.error("Erreur fermeture partie :", err);
       }
@@ -188,6 +193,69 @@ router.get("/ws", (ctx) => {
 
 // ==================== FONCTIONS JEU ====================
 
+function getRandomInt(max: number) {
+  return Math.floor(Math.random() * max);
+}
+
+function startGame() {
+  fecthPartiApi();
+  giveRoleAll();
+}
+
+async function giveRoleAll(){
+
+  let tabInt = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  let tabPlayer: any[] = [];
+  let i = 0;
+
+  players.forEach((player) => {
+    tabPlayer[i] = player.id;
+    i += 1;
+
+    let indexrand1 = getRandomInt(players.size);
+    let indexrand2 = getRandomInt(players.size);
+    let buffer = 0;
+
+    buffer = tabInt[indexrand1];
+    tabInt[indexrand1] = tabInt[indexrand2];
+    tabInt[indexrand2] = tabInt[indexrand1];
+
+  });
+
+  i = 0;
+  let rolePossible = roleSelonNbJoueur[players.size];
+
+  tabPlayer.forEach(async (playerId) => {
+    // il  faut ici choisir un rôle aléatoirement
+    let role = rolePossible.charAt(i);
+    let role_id = 0;
+    switch (role) {
+      case "a":
+        role = "assassin";
+        role_id = 1;
+        break;
+      case "p":
+        role = "petitefille";
+        role_id = 2;
+        break;
+      case "i":
+        role = "innocent";
+        role_id = 0;
+        break;
+    }
+    await fetchWithRetry(`${API_URL}/historiques`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: 1, // ← à remplacer quand tu auras un système de login
+        party_id: currentPartyId,
+        role_id: role_id,
+      }),
+    });
+    console.log(`Joueur ${playerId} enregistré avec le rôle ${role}`);
+  });
+}
+
 function createPlayerId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
@@ -200,12 +268,32 @@ function updatePlayer(playerId: string, data: { x: number; y: number }) {
   }
 }
 
-function activatePlayer(playerId: string, joueurType: string) {
+function activatePlayer(playerId: string) {
   const player = players.get(playerId);
   if (player) {
     player.active = true;
-    player.type = joueurType;
+    //player.type = joueurType;
   }
+}
+
+function setReadyPlayer(playerId: string) {
+  const player = players.get(playerId);
+  if (player) {
+    player.ready = true;
+  }
+}
+
+function checkAllReady() {
+  let nbReady = 0;
+  players.forEach((player) => {
+    if (player.ready) {
+      nbReady +=1;
+    }
+  })
+  if (players.size >=3 && nbReady == players.size) {
+    return true;
+  }
+  return false;
 }
 
 async function sendKilled(playerId: string) {

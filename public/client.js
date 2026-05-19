@@ -18,6 +18,8 @@ let isAfternoon = false;
 let isNight = false;
 let isMidnight = false;
 
+let isReady = false;
+
 canvas.width = window.innerWidth - 30;
 canvas.height = window.innerHeight - 30;
 
@@ -129,6 +131,7 @@ document.addEventListener("keyup", (e) => {
 socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
     switch (data.type) {
+      /*
         case "roles": {
             const select = document.getElementById("joueurType");
             select.innerHTML = "";
@@ -140,6 +143,7 @@ socket.onmessage = (event) => {
             });
             break;
         }
+      */
         case "update":
           players = data.players;
           obstacles = data.obstacles;
@@ -176,6 +180,11 @@ socket.onmessage = (event) => {
         case "isMidnight":
           isNight = false;
           isMidnight = true;
+          break;
+        case "gameStart":
+          setJoueurAttributes(data.role);
+          //referme le popup
+          //affiche le canva
           break;
     }
 };
@@ -339,11 +348,11 @@ function setJoueurAttributes(JoueurRole) {
   }
 }
 
-// à changer pour recup le rôle du joueur
+// À remplacer par un bouton "Je suis prêt" qui envoie { type: "setReady" }, sans lire de select.
+/*
 document.getElementById("joueurTypeForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const joueurType = document.getElementById("joueurType").value;
-  setJoueurAttributes(joueurType);
   document.getElementById("popup").style.display = "none";
   canvas.style.display = "block";
 
@@ -353,6 +362,12 @@ document.getElementById("joueurTypeForm").addEventListener("submit", (event) => 
   };
   socket.send(JSON.stringify(data));
 });
+*/
+function sendReady() {
+  isReady = true;
+  socket.send(JSON.stringify({type: "setReady"}));
+}
+
 
 function displayKilledMessage() {
   localJoueur.died = true;
