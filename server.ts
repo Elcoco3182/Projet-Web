@@ -30,12 +30,26 @@ const router = new Router();
 const app = new Application();
 
 const sockets = new Map();
-const players = new Map();
+let players = new Map();
+// des booleans pour savoir à quel moment du cycle jour nuit on est
+let isMorning = false;
+let isNoon = false;
+let isAfternoon = true;
+let isNight = false;
+let isMidnight = false;
 
-const mapHeight = Math.random() * 1000 + 1000;
-const mapWidth = Math.random() * 1000 + 1000;
 
-let obstacles = generateRandomObstacles();
+const mapHeight = 700;
+const mapWidth = 1200;
+
+
+let obstacles = generateRandomObstacles(); 
+
+setInterval(() => {
+    switchDayTime();
+}, 4_000); // on switch de phase toute les minutes pour l(instant toute les 1à sec pour des test)
+
+console.log("Server listening on port 8080");
 
 // ==================== CRÉATION DE LA PARTIE ====================
 
@@ -89,26 +103,25 @@ router.get("/ws", (ctx) => {
 
       ws.send(JSON.stringify({ type: "playerId", playerId, startX: spawnPoint.x, startY: spawnPoint.y }));
       ws.send(JSON.stringify({ type: "mapSize", height: mapHeight, width: mapWidth }));
+      ws.send(JSON.stringify({ type: getCurrentDayTime()}));
       ws.send(JSON.stringify({ type: "roles", roles }));
     } catch (err) {
       console.error("Erreur onopen :", err);
     }
   };
-
-  ws.onmessage = async (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      switch (data.type) {
-        case "update":
-          updatePlayer(playerId, data);
-          break;
-
-        case "disconnect":
-          players.delete(playerId);
-          break;
-
-        case "activatePlayer": {
-          activatePlayer(playerId, data.joueurType);
+    
+    ws.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+          case "update":
+            updatePlayer(playerId, data);
+            break;
+          case "disconnect":
+            players.delete(playerId);
+            break;
+          case "activatePlayer":{
+            activatePlayer(playerId, data.joueurType);
           partyStarted = true;
 
           const rolesRes = await fetchWithRetry(`${API_URL}/roles`);
@@ -127,14 +140,14 @@ router.get("/ws", (ctx) => {
             });
             console.log(`Joueur ${playerId} enregistré avec le rôle ${data.joueurType}`);
           }
-          break;
+            break;
         }
 
-        case "kill":
+          case "kill":
           await tryKill(playerId, data.targetId);
-          break;
-      }
-    } catch (err) {
+            break;
+        }
+      } catch (err) {
       console.error("Erreur onmessage :", err);
     }
   };
@@ -204,6 +217,60 @@ async function sendKilled(playerId: string) {
   });
 }
 
+function switchDayTime() {
+  if (isMorning){
+    isMorning = false;
+    isNoon = true;
+    const data = JSON.stringify({ type: "isNoon" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
+  else if (isNoon){
+    isNoon = false;
+    isAfternoon = true;
+    const data = JSON.stringify({ type: "isAfternoon" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
+  else if (isAfternoon){
+    isAfternoon = false;
+    isNight = true;
+    const data = JSON.stringify({ type: "isNight" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
+  else if (isNight){
+    isNight = false;
+    isMidnight = true;
+    const data = JSON.stringify({ type: "isMidnight" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
+  else if (isMidnight){
+    isMidnight = false;
+    isMorning = true;
+    const data = JSON.stringify({ type: "isMorning" });
+    sockets.forEach((client) => {
+        if (client.readyState === 1 ) {
+            client.send(data);
+        }
+    });
+  }
+}
+
+
 async function tryKill(attackerId: string, targetId: string) {
   const attacker = players.get(attackerId);
   const target = players.get(targetId);
@@ -241,10 +308,10 @@ function generateRandomObstacles() {
 function collidesWithObstacle(x: number, y: number, width: number, height: number): boolean {
   for (const obstacle of obstacles) {
     if (
-        x < obstacle.x + obstacle.width &&
-        x + width > obstacle.x &&
-        y < obstacle.y + obstacle.height &&
-        y + height > obstacle.y
+      x < obstacle.x + obstacle.width &&
+      x + width > obstacle.x &&
+      y < obstacle.y + obstacle.height &&
+      y + height > obstacle.y
     ) {
       return true;
     }
@@ -259,12 +326,22 @@ function getRandomSpawnPoint(): { x: number; y: number } {
   while (!validSpawn) {
     x = Math.random() * (mapWidth - 100) + 50;
     y = Math.random() * (mapHeight - 100) + 50;
+
     if (!collidesWithObstacle(x, y, 60, 50)) {
       validSpawn = true;
     }
   }
 
   return { x, y };
+}
+
+function getCurrentDayTime() {
+  if (isMorning) return "isMorning";
+  if (isNoon) return "isNoon";
+  if (isAfternoon) return "isAfternoon";
+  if (isNight) return "isNight";
+  if (isMidnight) return "isMidnight";
+  return "Inconnu";
 }
 
 

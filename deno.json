@@ -4,6 +4,7 @@
     "back": "deno run --allow-net --allow-env --allow-read=./public server.ts",
     "game": "deno run --allow-net --allow-env --allow-read=./public server.ts",
     "api:watch":  "deno run --allow-net --allow-env --watch src/scripts/api.ts",
-    "back:watch": "deno run --allow-net --allow-env --allow-read=./public --watch server.ts"
+    "back:watch": "deno run --allow-net --allow-env --allow-read=./public --watch server.ts",
+    "start": "deno run --watch --allow-net --allow-read server.ts"
   }
 }
