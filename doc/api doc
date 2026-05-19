@@ -1,0 +1,6 @@
+// On fetch l'api pour obtenir une table (ici users):
+const resUser = await fetch(`${API_URL}/users`);
+const db_users = await resUser.json();
+
+// On envoie les données par ws au client.js :
+ws.send(JSON.stringify({ type: "roles", roles }));

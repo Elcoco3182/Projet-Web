@@ -1,5 +1,21 @@
 services:
 
+
+  front:
+    build:
+      context: .
+      dockerfile: ./docker/front/Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      back :
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - frontNetwork
+
   back:
     build:
       context: .
@@ -8,11 +24,21 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      - DENO_DIR=/tmp/deno-cache
     depends_on:
-      - api
+      api :
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "deno", "eval", "await fetch('http://localhost:3000/health').then(r => r.ok ? Deno.exit(0) : Deno.exit(1)).catch(() => Deno.exit(1))"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
     networks:
       - frontNetwork
+      - middleNetwork
 
   api:
     build:
@@ -23,9 +49,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "deno", "eval", "await fetch('http://localhost:8000/health').then(r => r.ok ? Deno.exit(0) : Deno.exit(1)).catch(() => Deno.exit(1))"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
     networks:
-      - frontNetwork
+      - middleNetwork
       - backNetwork
 
   db:
@@ -35,7 +67,7 @@ services:
     env_file:
       - .env
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -46,11 +78,14 @@ services:
       - backNetwork
 
 volumes:
-  db-data:
+  pg_data:
 
 networks:
   frontNetwork:
     driver: bridge
+  middleNetwork:
+    driver: bridge
+    internal: true
   backNetwork:
     driver: bridge
     internal: true
