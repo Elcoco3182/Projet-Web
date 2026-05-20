@@ -2,16 +2,16 @@ FROM denoland/deno:alpine-2.5.0
 
 WORKDIR /app
 
-RUN chown -R deno:deno /app
-
 COPY deno.json* deno.lock* ./
 
-RUN deno cache server.ts || true
-
 COPY . .
+
+RUN chown -R deno:deno /app
+
+RUN deno cache server.ts
 
 EXPOSE 3000
 
 USER deno
 
-CMD ["deno", "run", "--allow-net", "--allow-env", "--watch", "--allow-read=./deno.json", "server.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-env", "--watch", "--allow-read=/app", "server.ts"]

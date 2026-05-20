@@ -11,20 +11,6 @@ import bcrypt from "npm:bcryptjs@2.4.3";
 
 const API_URL = Deno.env.get("API_URL") ?? "http://api:8000";
 
-/*
-async function fetchWithRetry(url: string, options?: RequestInit, retries = 5, delay = 2000): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch(url, options);
-      if (res.ok) return res;
-    } catch {
-      console.log(`API non disponible, retry ${i + 1}/${retries}...`);
-      await new Promise(r => setTimeout(r, delay));
-    }
-  }
-  throw new Error(`API inaccessible après ${retries} tentatives`);
-}
-*/
 
 async function fetchWithRetry(url: string, options?: RequestInit, retries = 5, delay = 2000): Promise<Response> {
   for (let i = 0; i < retries; i++) {
@@ -62,9 +48,10 @@ let isMidnight = false;
 let gameState = "noConnected";
 let nbReady = 0;
 
-const mapHeight = 4000;
-const mapWidth = 2500;
+const mapHeight = 1550;
+const mapWidth = 4000;
 
+import rectangles from "./public/assets/map/polytech.json" with { type: "json" };
 
 let obstacles = setObstacle(); 
 
@@ -432,27 +419,9 @@ async function tryKill(attackerId: string, targetId: string) {
   players.delete(targetId);
 }
 
-// a changer par une generation choisi
-function generateRandomObstacles() {
-  const obstacles = [];
-  const obstacleDensity = 0.00001;
-  const numObstacles = Math.floor(obstacleDensity * mapWidth * mapHeight);
-
-  for (let i = 0; i < numObstacles; i++) {
-    const x = Math.random() * (mapWidth - 10);
-    const y = Math.random() * (mapHeight - 10);
-    const width = 50 + Math.random() * 100;
-    const height = 50 + Math.random() * 100;
-    obstacles.push({ x, y, width, height });
-  }
-
-  return obstacles;
-}
-
 function setObstacle() {
   const obstacles: { x: number; y: number; width: number; height: number; }[] = [];
 
-  const rectangles = [[0,0,50,50]];
   rectangles.forEach((rectangle) => obstacles.push({ x: rectangle[0], y: rectangle[1], width: rectangle[2], height: rectangle[3] }))
 
   return obstacles;
