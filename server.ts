@@ -503,7 +503,7 @@ function getCurrentDayTime() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = parseInt(Deno.env.get("API_PORT") ?? "3000");
-const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "http://localhost:8080";
+//const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "http://localhost:8080";
 
 // Vérification: le secret JWT doit être défini explicitement
 const JWT_SECRET = Deno.env.get("JWT_SECRET");
@@ -769,22 +769,30 @@ router.get("/verify", async (ctx) => {
 // Application
 // ─────────────────────────────────────────────────────────────────────────────
 
-// CORS : autoriser uniquement le serveur front à appeler l'API
+// ==================== CORS ====================
+
+const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",");
+
 app.use(
     oakCors({
-      origin:         FRONT_ORIGIN,
-      methods:        ["GET", "POST"],
-      allowedHeaders: ["Content-Type"],
-      credentials:    true,
-    })
+      origin: (requestOrigin) => {
+        if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+          return requestOrigin || "*";
+        }
+        return false;
+      },
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      credentials: true,
+    }),
 );
+
 
 // Logger minimal (sans données sensibles)
 app.use(async (ctx, next) => {
   await next();
   console.log(`${ctx.request.method} ${ctx.request.url.pathname} → ${ctx.response.status}`);
 });
-
 
 // ==================== DÉMARRAGE ====================
 

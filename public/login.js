@@ -9,8 +9,10 @@ async function VerifyUser(){
         password : password_id.value
     };
 
+    const BACK_URL = `http://${window.location.hostname}:3000`;
+
     try {
-        const rep = await fetch("http://localhost:3000/login", {
+        const rep = await fetch(`${BACK_URL}/login`, {
             method: "POST",
             credentials: "include",
             headers: {
