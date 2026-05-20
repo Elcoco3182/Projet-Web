@@ -5,6 +5,9 @@ const ctx = canvas.getContext("2d");
 let canvasNight = document.createElement("canvas");
 const ctxNight = canvasNight.getContext("2d");
 
+const WORLD_VIEW_WIDTH = 800;   // tous les joueurs voient toujours 800px de carte
+const WORLD_VIEW_HEIGHT = 600;  // et 600px de carte, peu importe l'écran
+
 let mapWidth, mapHeight;
 
 let players = [];
@@ -208,48 +211,69 @@ function update() {
 }
 
 function draw() {
-
   document.getElementById("dayTime").innerText = getCurrentDayTime();
 
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.fillStyle = "gray";
+  // Calcul du centrage (nécessaire partout dans draw)
+  const renderOffsetX = (viewportWidth - WORLD_VIEW_WIDTH * cameraZoom) / 2;
+  const renderOffsetY = (viewportHeight - WORLD_VIEW_HEIGHT * cameraZoom) / 2;
+
+  // Reset transform
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  ctx.fillStyle = "white";
   ctx.fillRect(0, 0, viewportWidth, viewportHeight);
+
+  // Fond gris uniquement dans la zone de jeu
+  ctx.fillStyle = "gray";
+  ctx.fillRect(renderOffsetX, renderOffsetY, WORLD_VIEW_WIDTH * cameraZoom, WORLD_VIEW_HEIGHT * cameraZoom);
 
   const currentPlayer = players.find((player) => player.id === localJoueur.id);
   if (!currentPlayer) return;
 
-  const visibleWidth = viewportWidth / cameraZoom;
-  const visibleHeight = viewportHeight / cameraZoom;
-
   const offsetX = Math.min(
-    Math.max(currentPlayer.x - visibleWidth / 2, 0),
-    mapWidth - visibleWidth
+    Math.max(currentPlayer.x - WORLD_VIEW_WIDTH / 2, 0),
+    Math.max(mapWidth - WORLD_VIEW_WIDTH, 0)
+  );
+  const offsetY = Math.min(
+    Math.max(currentPlayer.y - WORLD_VIEW_HEIGHT / 2, 0),
+    Math.max(mapHeight - WORLD_VIEW_HEIGHT, 0)
   );
 
-  const offsetY = Math.min(
-    Math.max(currentPlayer.y - visibleHeight / 2, 0),
-    mapHeight - visibleHeight
-  );
+  const screenX = (currentPlayer.x - offsetX) * cameraZoom + renderOffsetX;
+  const screenY = (currentPlayer.y - offsetY) * cameraZoom + renderOffsetY;
 
   ctx.save();
-
+  ctx.translate(renderOffsetX, renderOffsetY);
+  ctx.beginPath();
+  ctx.rect(0, 0, WORLD_VIEW_WIDTH * cameraZoom, WORLD_VIEW_HEIGHT * cameraZoom);
+  ctx.clip();
   ctx.scale(cameraZoom, cameraZoom);
   ctx.translate(-offsetX, -offsetY);
 
-  drawBorder(offsetX, offsetY);
   players.forEach((player) => {
     drawJoueur(player.x, player.y, player.type);
   });
-
   obstacles.forEach((obstacle) => {
     drawObstacle(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
   });
 
   ctx.restore();
 
+  drawBorder();
+
   if (isNight || isMidnight) {
-    applyNightMask(ctxNight, localJoueur.x - offsetX, localJoueur.y - offsetY, 150);
+    applyNightMask(ctxNight, screenX, screenY, 150 * cameraZoom);
+    
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    
+    // Clip sur la zone de jeu uniquement
+    ctx.beginPath();
+    ctx.rect(renderOffsetX, renderOffsetY, WORLD_VIEW_WIDTH * cameraZoom, WORLD_VIEW_HEIGHT * cameraZoom);
+    ctx.clip();
+    
     ctx.drawImage(canvasNight, 0, 0);
+    ctx.restore();
   }
 }
 
@@ -302,21 +326,19 @@ function collidesWithObstacle(x, y, width, height) {
   return false;
 }   
 
-function drawBorder(offsetX, offsetY) {
+function drawBorder() {
+  const renderOffsetX = (viewportWidth - WORLD_VIEW_WIDTH * cameraZoom) / 2;
+  const renderOffsetY = (viewportHeight - WORLD_VIEW_HEIGHT * cameraZoom) / 2;
+  const w = WORLD_VIEW_WIDTH * cameraZoom;
+  const h = WORLD_VIEW_HEIGHT * cameraZoom;
+
   ctx.save();
-
-  // Limit the drawing area
-  ctx.beginPath();
-  ctx.rect(offsetX, offsetY, viewportWidth, viewportHeight);
-  ctx.clip();
-
-  // Draw the borders
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "black";
-  ctx.fillRect(offsetX, offsetY, viewportWidth, 5); // Top border
-  ctx.fillRect(offsetX, offsetY + viewportHeight - 5, viewportWidth, 5); // Bottom border
-  ctx.fillRect(offsetX + viewportWidth - 5, offsetY, 5, viewportHeight); // Right border
-  ctx.fillRect(offsetX, offsetY, 5, viewportHeight); // Left border
-
+  ctx.fillRect(renderOffsetX, renderOffsetY, w, 5);               // haut
+  ctx.fillRect(renderOffsetX, renderOffsetY + h - 5, w, 5);       // bas
+  ctx.fillRect(renderOffsetX + w - 5, renderOffsetY, 5, h);       // droite
+  ctx.fillRect(renderOffsetX, renderOffsetY, 5, h);               // gauche
   ctx.restore();
 }
 
@@ -440,19 +462,10 @@ function getCurrentDayTime() {
 }
 
 function updateZoom() {
-
-  const isPhone =
-    window.innerWidth <= 900 &&
-    window.innerHeight <= 500;
-
-  const isLandscape =
-    window.innerWidth > window.innerHeight;
-
-  if (isPhone && isLandscape) {
-    cameraZoom = 0.6;
-  } else {
-    cameraZoom = 1;
-  }
+  // On veut que WORLD_VIEW_WIDTH x WORLD_VIEW_HEIGHT rentre dans le canvas
+  const zoomX = viewportWidth / WORLD_VIEW_WIDTH;
+  const zoomY = viewportHeight / WORLD_VIEW_HEIGHT;
+  cameraZoom = Math.min(zoomX, zoomY);
 }
 
 socket.onerror = (error) => {

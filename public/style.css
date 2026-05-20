@@ -1,6 +1,13 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
 canvas {
     display: block;
     margin: 0 auto;
+    pointer-events: none;
 }
 
 .stats-bar {
@@ -101,6 +108,8 @@ a {
 
     display: none;
 
+    pointer-events: auto;
+
     z-index: 1000;
 }
 
@@ -113,11 +122,13 @@ a {
     height: 120px;
 
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(145, 145, 145, 0.15);
 
     backdrop-filter: blur(4px);
 
     display: none;
+
+    pointer-events: auto;
 
     z-index: 1000;
 
@@ -137,9 +148,9 @@ a {
 
     border-radius: 50%;
 
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(196, 196, 196, 0.45);
 
-    border: 2px solid rgba(255,255,255,0.7);
+    border: 2px solid rgba(97, 97, 97, 0.7);
 }
 
 @media (pointer: coarse) {
