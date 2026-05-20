@@ -14,4 +14,4 @@ EXPOSE 3000
 
 USER deno
 
-CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read=./deno.json", "server.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-env", "--watch", "--allow-read=./deno.json", "server.ts"]
