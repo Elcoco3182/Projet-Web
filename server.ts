@@ -62,11 +62,11 @@ let isMidnight = false;
 let gameState = "noConnected";
 let nbReady = 0;
 
-const mapHeight = 700;
-const mapWidth = 1200;
+const mapHeight = 4000;
+const mapWidth = 2500;
 
 
-let obstacles = generateRandomObstacles(); 
+let obstacles = setObstacle(); 
 
 setInterval(() => {
     switchDayTime();
@@ -136,7 +136,7 @@ router.get("/ws", (ctx) => {
   }
 
   const spawnPoint = getRandomSpawnPoint();
-  
+
   if (gameState === "noConnected" || gameState === "lobby"){
     sockets.set(playerId, ws);
 
@@ -432,6 +432,7 @@ async function tryKill(attackerId: string, targetId: string) {
   players.delete(targetId);
 }
 
+// a changer par une generation choisi
 function generateRandomObstacles() {
   const obstacles = [];
   const obstacleDensity = 0.00001;
@@ -444,6 +445,15 @@ function generateRandomObstacles() {
     const height = 50 + Math.random() * 100;
     obstacles.push({ x, y, width, height });
   }
+
+  return obstacles;
+}
+
+function setObstacle() {
+  const obstacles: { x: number; y: number; width: number; height: number; }[] = [];
+
+  const rectangles = [[0,0,50,50]];
+  rectangles.forEach((rectangle) => obstacles.push({ x: rectangle[0], y: rectangle[1], width: rectangle[2], height: rectangle[3] }))
 
   return obstacles;
 }

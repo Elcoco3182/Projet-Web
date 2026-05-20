@@ -79,3 +79,18 @@ a {
     color: #4CAF50;
     text-decoration: none;
 }
+
+#killButton {
+  display: none;
+}
+
+#joystickContainer {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  /* s'affiche seulement si l'écran est tactile */
+  #joystickContainer {
+    display: block;
+  }
+}

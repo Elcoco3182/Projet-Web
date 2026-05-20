@@ -325,19 +325,10 @@ window.addEventListener('resize', function() {
 function setJoueurAttributes(JoueurRole) {
   if (localJoueur == null) return;
   localJoueur.type = JoueurRole;
-  switch (JoueurRole) {
-    case "assassin":
-      localJoueur.speed = 8;
-      break;
-    case "innocent":
-      localJoueur.speed = 8;
-      break;
-    case "petitefille":
-      localJoueur.speed = 8;
-      break;
-    default:
-      localJoueur.speed = 8;
-      break;
+  localJoueur.speed = 8;
+
+  if (JoueurRole === "assassin" && window.matchMedia("(pointer: coarse)").matches) {
+    document.getElementById("killButton").style.display = "block";
   }
 }
 
@@ -430,3 +421,63 @@ socket.onclose = (event) => {
     displayErrorMessage("WebSocket connection closed unexpectedly");
   }
 };
+
+
+const joystickContainer = document.getElementById('joystickContainer');
+const joystick = document.getElementById('joystick');
+const killButton = document.getElementById('killButton');
+
+let touchStartX = 0;
+let touchStartY = 0;
+let isTouching = false;
+
+joystickContainer.addEventListener('touchstart', (event) => {
+    event.preventDefault();
+    isTouching = true;
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+});
+
+joystickContainer.addEventListener("touchmove", (event) => {
+  event.preventDefault();
+  if (isTouching) {
+    const deltaX = event.touches[0].clientX - touchStartX;
+    const deltaY = event.touches[0].clientY - touchStartY;
+
+    // Move the joystick based on touch position
+    joystick.style.transform = `translate(${deltaX - 50 / 2}px, ${
+      deltaY - 50 / 2
+    }px)`;
+
+    // Calculate direction vector and normalize it
+    const directionX = deltaX / Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const directionY = deltaY / Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    // Calculate the angle in radians and convert it to degrees
+    const angle = Math.atan2(directionY, directionX) * (180 / Math.PI);
+
+    // Call the appropriate functions based on the angle
+    if (angle >= -45 && angle <= 45) {
+      localTank.moveRight();
+    } else if (angle > 45 && angle < 135) {
+      localTank.moveDown();
+    } else if (angle >= 135 || angle <= -135) {
+      localTank.moveLeft();
+    } else if (angle < -45 && angle > -135) {
+      localTank.moveUp();
+    }
+  }
+});
+
+joystickContainer.addEventListener('touchend', () => {
+    isTouching = false;
+    joystick.style.transform = 'translate(-50%, -50%)'; // Reset the joystick position
+});
+
+killButton.addEventListener('touchstart', (event) => {
+    event.preventDefault();
+    localJoueur.tryKill();
+});
+killButton.addEventListener('touchend', (event) => {
+    event.preventDefault();
+});
