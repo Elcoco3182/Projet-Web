@@ -21,6 +21,8 @@ let isMidnight = false;
 let isReady = false;
 let rejected = false;
 
+let cameraZoom = 1;
+
 canvas.width = window.innerWidth - 30;
 canvas.height = window.innerHeight - 30;
 
@@ -91,6 +93,15 @@ class Joueur {
         }
     }
 }
+
+// Input joystick
+let joystickInput = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+  killBoutton: false,
+};
 
 // Input handling
 let keys = {
@@ -181,6 +192,8 @@ socket.onmessage = (event) => {
     }
 };
 
+updateZoom();
+
 socket.onopen = () => {
     gameLoop();
 };
@@ -198,18 +211,31 @@ function draw() {
 
   document.getElementById("dayTime").innerText = getCurrentDayTime();
 
+  ctx.setTransform(1,0,0,1,0,0);
   ctx.fillStyle = "gray";
   ctx.fillRect(0, 0, viewportWidth, viewportHeight);
 
   const currentPlayer = players.find((player) => player.id === localJoueur.id);
   if (!currentPlayer) return;
 
-  const offsetX = Math.min(Math.max(currentPlayer.x - viewportWidth / 2, 0), mapWidth - viewportWidth);
-  const offsetY = Math.min(Math.max(currentPlayer.y - viewportHeight / 2, 0), mapHeight - viewportHeight);
+  const visibleWidth = viewportWidth / cameraZoom;
+  const visibleHeight = viewportHeight / cameraZoom;
+
+  const offsetX = Math.min(
+    Math.max(currentPlayer.x - visibleWidth / 2, 0),
+    mapWidth - visibleWidth
+  );
+
+  const offsetY = Math.min(
+    Math.max(currentPlayer.y - visibleHeight / 2, 0),
+    mapHeight - visibleHeight
+  );
 
   ctx.save();
 
+  ctx.scale(cameraZoom, cameraZoom);
   ctx.translate(-offsetX, -offsetY);
+
   drawBorder(offsetX, offsetY);
   players.forEach((player) => {
     drawJoueur(player.x, player.y, player.type);
@@ -300,12 +326,12 @@ function gameLoop() {
     if (localJoueur.died) return;
     if (socket.readyState !== WebSocket.OPEN) return;
 
-    if (keys.ArrowUp) localJoueur.moveUp();
-    if (keys.ArrowDown) localJoueur.moveDown();
-    if (keys.ArrowLeft) localJoueur.moveLeft();
-    if (keys.ArrowRight) localJoueur.moveRight();
+    if (keys.ArrowUp || joystickInput.up) localJoueur.moveUp();
+    if (keys.ArrowDown || joystickInput.down) localJoueur.moveDown();
+    if (keys.ArrowLeft || joystickInput.left) localJoueur.moveLeft();
+    if (keys.ArrowRight || joystickInput.right) localJoueur.moveRight();
 
-    if (keys.Spacebar) localJoueur.tryKill();
+    if (keys.Spacebar || joystickInput.killBoutton) localJoueur.tryKill();
 
     update();
     draw();
@@ -320,6 +346,8 @@ window.addEventListener('resize', function() {
 
   viewportWidth = canvas.width;
   viewportHeight = canvas.height;
+
+  updateZoom();
 });
 
 function setJoueurAttributes(JoueurRole) {
@@ -327,9 +355,13 @@ function setJoueurAttributes(JoueurRole) {
   localJoueur.type = JoueurRole;
   localJoueur.speed = 8;
 
-  if (JoueurRole === "assassin" && window.matchMedia("(pointer: coarse)").matches) {
+  if (JoueurRole === "assassin" && 'ontouchstart' in window) {
     document.getElementById("killButton").style.display = "block";
-  }
+}
+
+if ('ontouchstart' in window) {
+    document.getElementById("joystickContainer").style.display = "block";
+}
 }
 
 function sendReady() {
@@ -407,6 +439,22 @@ function getCurrentDayTime() {
   return "Inconnu";
 }
 
+function updateZoom() {
+
+  const isPhone =
+    window.innerWidth <= 900 &&
+    window.innerHeight <= 500;
+
+  const isLandscape =
+    window.innerWidth > window.innerHeight;
+
+  if (isPhone && isLandscape) {
+    cameraZoom = 0.6;
+  } else {
+    cameraZoom = 1;
+  }
+}
+
 socket.onerror = (error) => {
   displayErrorMessage("WebSocket error: " + error.message);
 };
@@ -445,9 +493,9 @@ joystickContainer.addEventListener("touchmove", (event) => {
     const deltaY = event.touches[0].clientY - touchStartY;
 
     // Move the joystick based on touch position
-    joystick.style.transform = `translate(${deltaX - 50 / 2}px, ${
-      deltaY - 50 / 2
-    }px)`;
+    joystick.style.transform =
+  `translate(calc(-50% + ${deltaX}px),
+             calc(-50% + ${deltaY}px))`;
 
     // Calculate direction vector and normalize it
     const directionX = deltaX / Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -457,27 +505,43 @@ joystickContainer.addEventListener("touchmove", (event) => {
     const angle = Math.atan2(directionY, directionX) * (180 / Math.PI);
 
     // Call the appropriate functions based on the angle
+    joystickInput.up = false;
+    joystickInput.down = false;
+    joystickInput.left = false;
+    joystickInput.right = false;
+
     if (angle >= -45 && angle <= 45) {
-      localTank.moveRight();
+      joystickInput.right = true;
+
     } else if (angle > 45 && angle < 135) {
-      localTank.moveDown();
+      joystickInput.down = true;
+
     } else if (angle >= 135 || angle <= -135) {
-      localTank.moveLeft();
+      joystickInput.left = true;
+
     } else if (angle < -45 && angle > -135) {
-      localTank.moveUp();
+      joystickInput.up = true;
     }
   }
 });
 
 joystickContainer.addEventListener('touchend', () => {
-    isTouching = false;
-    joystick.style.transform = 'translate(-50%, -50%)'; // Reset the joystick position
+
+  joystickInput.up = false;
+  joystickInput.down = false;
+  joystickInput.left = false;
+  joystickInput.right = false;
+
+  isTouching = false;
+  joystick.style.transform = 'translate(-50%, -50%)'; // Reset the joystick position
 });
 
 killButton.addEventListener('touchstart', (event) => {
-    event.preventDefault();
-    localJoueur.tryKill();
+  joystickInput.killBoutton = true;
+  event.preventDefault();
 });
+
 killButton.addEventListener('touchend', (event) => {
-    event.preventDefault();
+  joystickInput.killBoutton = false;
+  event.preventDefault();
 });
