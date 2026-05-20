@@ -11,11 +11,27 @@ import bcrypt from "npm:bcryptjs@2.4.3";
 
 const API_URL = Deno.env.get("API_URL") ?? "http://api:8000";
 
+/*
 async function fetchWithRetry(url: string, options?: RequestInit, retries = 5, delay = 2000): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
       const res = await fetch(url, options);
       if (res.ok) return res;
+    } catch {
+      console.log(`API non disponible, retry ${i + 1}/${retries}...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error(`API inaccessible après ${retries} tentatives`);
+}
+*/
+
+async function fetchWithRetry(url: string, options?: RequestInit, retries = 5, delay = 2000): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) return res;
+      console.log(`Réponse non-ok: ${res.status} pour ${url}`);  // ← ici
     } catch {
       console.log(`API non disponible, retry ${i + 1}/${retries}...`);
       await new Promise(r => setTimeout(r, delay));
@@ -44,6 +60,7 @@ let isNight = false;
 let isMidnight = false;
 
 let gameState = "noConnected";
+let nbReady = 0;
 
 const mapHeight = 700;
 const mapWidth = 1200;
@@ -90,86 +107,96 @@ router.get("/ws", (ctx) => {
   
   const ws = ctx.upgrade();
   const playerId = createPlayerId();
+  let rejected = false;
 
-  if (gameState === "playing") {
-    ws.send(JSON.stringify({type: "rejected"}));
-    ws.close(1008, "Partie en cours");
-    return;
-  }
+  ws.onclose = async () => {
+    if (rejected) return;  // ← ignorer si rejeté
+
+    players.delete(playerId);
+    sockets.delete(playerId);
+    sendUpdatelobby();
+
+    if (players.size === 0 && gameState === "playing" && currentPartyId) {
+      try {
+        await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, { method: "PATCH" });
+        console.log(`Partie ${currentPartyId} terminée`);
+      } catch (err) {
+        console.error("Erreur fermeture partie :", err);
+      }
+    }
+
+    if (players.size === 0) {
+      gameState = "noConnected";
+      currentPartyId = null;
+    }
+  };
 
   if (gameState === "noConnected") {
     gameState = "lobby";
   }
 
-  sockets.set(playerId, ws);
-
   const spawnPoint = getRandomSpawnPoint();
-  players.set(playerId, {
-    id: playerId,
-    x: spawnPoint.x,
-    y: spawnPoint.y,
-    height: 40,
-    width: 20,
-    kills: 0,
-    active: false,
-    ready: false,
-  });
+  
+  if (gameState === "noConnected" || gameState === "lobby"){
+    sockets.set(playerId, ws);
+
+    players.set(playerId, {
+      id: playerId,
+      x: spawnPoint.x,
+      y: spawnPoint.y,
+      height: 40,
+      width: 20,
+      kills: 0,
+      active: false,
+      ready: false,
+    });
+
+    sendUpdatelobby();
+  }
 
   ws.onopen = async () => {
     try {
-      //const rolesRes = await fetchWithRetry(`${API_URL}/roles`);
-      //const roles = await rolesRes.json();
+     if (gameState === "playing") {
+        rejected = true;
+        ws.send(JSON.stringify({type: "rejected"}));
+        ws.close(1008, "Partie en cours");
+        return;
+      }
       ws.send(JSON.stringify({ type: "playerId", playerId, startX: spawnPoint.x, startY: spawnPoint.y }));
       ws.send(JSON.stringify({ type: "mapSize", height: mapHeight, width: mapWidth }));
       ws.send(JSON.stringify({ type: getCurrentDayTime()}));
-      //ws.send(JSON.stringify({ type: "roles", roles }));
     } catch (err) {
       console.error("Erreur onopen :", err);
     }
   };
     
-    ws.onmessage = async (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        switch (data.type) {
-          case "update":
-            updatePlayer(playerId, data);
-            break;
-          case "disconnect":
-            players.delete(playerId);
-            break;
-          case "activatePlayer":
-            activatePlayer(playerId);
-            break;
-          case "kill":
-            await tryKill(playerId, data.targetId);
-            break;
-          case "setReady":
-            setReadyPlayer(playerId);
-            if (checkAllReady()) {
-              gameState = "playing";
-              startGame();
-            }
-            break;
+  ws.onmessage = async (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      switch (data.type) {
+        case "update":
+          updatePlayer(playerId, data);
+          break;
+        case "disconnect":
+          players.delete(playerId);
+          if (gameState === "lobby") {
+            sendUpdatelobby();
+          }
+          break;
+        case "kill":
+          await tryKill(playerId, data.targetId);
+          break;
+        case "setReady":
+          setReadyPlayer(playerId);
+          sendUpdatelobby();
+          if (checkAllReady()) {
+            gameState = "playing";
+            startGame();
+          }
+          break;
         }
       } catch (err) {
       console.error("Erreur onmessage :", err);
-    }
-  };
-
-  ws.onclose = async () => {
-    players.delete(playerId);
-    sockets.delete(playerId);
-
-    // Terminer la partie seulement si elle a commencé et qu'il n'y a plus personne
-    if (players.size === 0 && gameState === "playing" && currentPartyId) {
-      try {
-        await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, { method: "PATCH" });
-        console.log(`Partie ${currentPartyId} terminée`);
-        gameState = "noConnected";
-      } catch (err) {
-        console.error("Erreur fermeture partie :", err);
-      }
     }
   };
 
@@ -197,9 +224,9 @@ function getRandomInt(max: number) {
   return Math.floor(Math.random() * max);
 }
 
-function startGame() {
-  fecthPartiApi();
-  giveRoleAll();
+async function startGame() {
+  await fecthPartiApi();
+  await giveRoleAll();
 }
 
 async function giveRoleAll(){
@@ -218,31 +245,37 @@ async function giveRoleAll(){
 
     buffer = tabInt[indexrand1];
     tabInt[indexrand1] = tabInt[indexrand2];
-    tabInt[indexrand2] = tabInt[indexrand1];
+    tabInt[indexrand2] = buffer;
 
   });
 
   i = 0;
   let rolePossible = roleSelonNbJoueur[players.size];
 
-  tabPlayer.forEach(async (playerId) => {
+  for (const playerId of tabPlayer) {
+  // ton code
     // il  faut ici choisir un rôle aléatoirement
     let role = rolePossible.charAt(tabInt[i]);
     let role_id = 0;
     switch (role) {
       case "a":
         role = "assassin";
-        role_id = 1;
+        role_id = 2;
         break;
       case "p":
         role = "petitefille";
-        role_id = 2;
+        role_id = 3;
         break;
       case "i":
         role = "innocent";
-        role_id = 0;
+        role_id = 1;
         break;
     }
+
+    i++;
+
+    console.log("Envoi historique:", { user_id: 1, party_id: currentPartyId, role_id: role_id });
+
     await fetchWithRetry(`${API_URL}/historiques`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -252,8 +285,14 @@ async function giveRoleAll(){
         role_id: role_id,
       }),
     });
+    activatePlayer(playerId, role);  // passe aussi le role
+    const playerSocket = sockets.get(playerId);
+    console.log(`Joueur role ${role}`);
+    if (playerSocket?.readyState === WebSocket.OPEN) {
+      playerSocket.send(JSON.stringify({ type: "gameStart", role }));
+    }
     console.log(`Joueur ${playerId} enregistré avec le rôle ${role}`);
-  });
+  }
 }
 
 function createPlayerId(): string {
@@ -268,11 +307,11 @@ function updatePlayer(playerId: string, data: { x: number; y: number }) {
   }
 }
 
-function activatePlayer(playerId: string) {
+function activatePlayer(playerId: string, role: string) {
   const player = players.get(playerId);
   if (player) {
     player.active = true;
-    //player.type = joueurType;
+    player.type = role;
   }
 }
 
@@ -283,13 +322,17 @@ function setReadyPlayer(playerId: string) {
   }
 }
 
-function checkAllReady() {
-  let nbReady = 0;
+function miseAjourReady() {
+  nbReady = 0;
   players.forEach((player) => {
     if (player.ready) {
       nbReady +=1;
     }
   })
+}
+
+function checkAllReady() {
+  miseAjourReady();
   if (players.size >=3 && nbReady == players.size) {
     return true;
   }
@@ -305,56 +348,68 @@ async function sendKilled(playerId: string) {
   });
 }
 
+function sendUpdatelobby() {
+  miseAjourReady();
+  const data = JSON.stringify({ type: "lobbyUpdate", nbReady, total : players.size });
+  sockets.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(data);
+    }
+  });
+}
+
 function switchDayTime() {
-  if (isMorning){
-    isMorning = false;
-    isNoon = true;
-    const data = JSON.stringify({ type: "isNoon" });
-    sockets.forEach((client) => {
-        if (client.readyState === 1 ) {
-            client.send(data);
-        }
-    });
-  }
-  else if (isNoon){
-    isNoon = false;
-    isAfternoon = true;
-    const data = JSON.stringify({ type: "isAfternoon" });
-    sockets.forEach((client) => {
-        if (client.readyState === 1 ) {
-            client.send(data);
-        }
-    });
-  }
-  else if (isAfternoon){
-    isAfternoon = false;
-    isNight = true;
-    const data = JSON.stringify({ type: "isNight" });
-    sockets.forEach((client) => {
-        if (client.readyState === 1 ) {
-            client.send(data);
-        }
-    });
-  }
-  else if (isNight){
-    isNight = false;
-    isMidnight = true;
-    const data = JSON.stringify({ type: "isMidnight" });
-    sockets.forEach((client) => {
-        if (client.readyState === 1 ) {
-            client.send(data);
-        }
-    });
-  }
-  else if (isMidnight){
-    isMidnight = false;
-    isMorning = true;
-    const data = JSON.stringify({ type: "isMorning" });
-    sockets.forEach((client) => {
-        if (client.readyState === 1 ) {
-            client.send(data);
-        }
-    });
+  if (gameState == "playing") {
+    if (isMorning){
+      isMorning = false;
+      isNoon = true;
+      const data = JSON.stringify({ type: "isNoon" });
+      sockets.forEach((client) => {
+          if (client.readyState === 1 ) {
+              client.send(data);
+          }
+      });
+    }
+    else if (isNoon){
+      isNoon = false;
+      isAfternoon = true;
+      const data = JSON.stringify({ type: "isAfternoon" });
+      sockets.forEach((client) => {
+          if (client.readyState === 1 ) {
+              client.send(data);
+          }
+      });
+    }
+    else if (isAfternoon){
+      isAfternoon = false;
+      isNight = true;
+      const data = JSON.stringify({ type: "isNight" });
+      sockets.forEach((client) => {
+          if (client.readyState === 1 ) {
+              client.send(data);
+          }
+      });
+    }
+    else if (isNight){
+      isNight = false;
+      isMidnight = true;
+      const data = JSON.stringify({ type: "isMidnight" });
+      sockets.forEach((client) => {
+          if (client.readyState === 1 ) {
+              client.send(data);
+          }
+      });
+    }
+    else if (isMidnight){
+      isMidnight = false;
+      isMorning = true;
+      const data = JSON.stringify({ type: "isMorning" });
+      sockets.forEach((client) => {
+          if (client.readyState === 1 ) {
+              client.send(data);
+          }
+      });
+    }
   }
 }
 

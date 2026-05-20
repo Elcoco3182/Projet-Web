@@ -19,6 +19,7 @@ let isNight = false;
 let isMidnight = false;
 
 let isReady = false;
+let rejected = false;
 
 canvas.width = window.innerWidth - 30;
 canvas.height = window.innerHeight - 30;
@@ -30,12 +31,6 @@ let viewportWidth = canvas.width;
 let viewportHeight = canvas.height;
 
 canvas.style.display = "none";
-
-
-// Affiche que la connexion (ws) est en train de se faire
-const submitBtn = document.querySelector("#joueurTypeForm button");
-submitBtn.disabled = true;
-submitBtn.textContent = "Connexion...";
 
 class Joueur {
     constructor(x, y) {
@@ -131,22 +126,13 @@ document.addEventListener("keyup", (e) => {
 socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
     switch (data.type) {
-      /*
-        case "roles": {
-            const select = document.getElementById("joueurType");
-            select.innerHTML = "";
-            data.roles.forEach(role => {
-                const option = document.createElement("option");
-                option.value = role.name;
-                option.textContent = role.name.charAt(0).toUpperCase() + role.name.slice(1);
-                select.appendChild(option);
-            });
-            break;
-        }
-      */
         case "update":
           players = data.players;
           obstacles = data.obstacles;
+          break;
+        case "lobbyUpdate":
+          document.getElementById("lobbyCount").innerText = 
+            `${data.nbReady}/${data.total} joueurs prêts (min. 3)`;
           break;
         case "killed":
           if (data.playerId === localJoueur.id) {
@@ -183,15 +169,19 @@ socket.onmessage = (event) => {
           break;
         case "gameStart":
           setJoueurAttributes(data.role);
-          //referme le popup
-          //affiche le canva
+          document.getElementById("popup").style.display = "none";
+          document.getElementById("lobbyCount").style.display = "none";
+          canvas.style.display = "block";
+          break;
+        case "rejected":
+          document.getElementById("popup").style.display = "none";
+          document.getElementById("lobbyCount").style.display = "none";
+          rejected = true;
           break;
     }
 };
 
 socket.onopen = () => {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Start Game";
     gameLoop();
 };
 
@@ -251,8 +241,11 @@ function drawJoueur(x, y, type){
       case "innocent":
         ctx.fillStyle = "green";
         break;
-      case "petiteFille":
+      case "petitefille":
         ctx.fillStyle = "blue";
+        break;
+      default:
+        ctx.fillStyle = "green";
         break;
     }
   }
@@ -339,7 +332,7 @@ function setJoueurAttributes(JoueurRole) {
     case "innocent":
       localJoueur.speed = 8;
       break;
-    case "petiteFille":
+    case "petitefille":
       localJoueur.speed = 8;
       break;
     default:
@@ -348,21 +341,6 @@ function setJoueurAttributes(JoueurRole) {
   }
 }
 
-// À remplacer par un bouton "Je suis prêt" qui envoie { type: "setReady" }, sans lire de select.
-/*
-document.getElementById("joueurTypeForm").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const joueurType = document.getElementById("joueurType").value;
-  document.getElementById("popup").style.display = "none";
-  canvas.style.display = "block";
-
-  const data = {
-    type: "activatePlayer",
-    joueurType: joueurType,
-  };
-  socket.send(JSON.stringify(data));
-});
-*/
 function sendReady() {
   isReady = true;
   socket.send(JSON.stringify({type: "setReady"}));
@@ -405,7 +383,7 @@ function applyNightMask(ctxNight, px, py, radius) {
   if (localJoueur.type === "assassin"){
     rad *= 1.7;
   }
-  else if (localJoueur.type === "petiteFille"){
+  else if (localJoueur.type === "petitefille"){
     rad *= 2.5;
   }
   ctxNight.save();
@@ -443,7 +421,10 @@ socket.onerror = (error) => {
 };
 
 socket.onclose = (event) => {
-  if (event.wasClean) {
+  if (rejected) {
+    displayErrorMessage("Partie déjà en cours, vous avez été rejeté");
+  }
+  else if (event.wasClean) {
     displayErrorMessage("WebSocket connection closed");
   } else {
     displayErrorMessage("WebSocket connection closed unexpectedly");

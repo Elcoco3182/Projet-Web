@@ -2,6 +2,8 @@ FROM denoland/deno:alpine-2.5.0
 
 WORKDIR /app
 
+RUN chown -R deno:deno /app
+
 COPY deno.json* deno.lock* ./
 
 RUN deno cache server.ts || true
