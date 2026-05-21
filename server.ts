@@ -1,4 +1,4 @@
-import { Application, Router } from "jsr:@oak/oak";
+import { Application, Router, send } from "jsr:@oak/oak";
 //import { Application, Context, Router } from "https://deno.land/x/oak@v17.1.6/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { create, verify } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
@@ -87,11 +87,27 @@ router.get("/health", (ctx) => {
 
 // ==================== WEBSOCKET ====================
 
-router.get("/ws", (ctx) => {
+router.get("/ws", async (ctx) => {
+
   if (!ctx.isUpgradable) {
     ctx.throw(501);
   }
-  
+
+  // Vérifier le token et récupérer le username
+  const token = getTokenFromCookie(ctx);
+  if (!token) {
+    ctx.throw(401);
+    return;
+  }
+  let username = "Inconnu";
+  try {
+    const payload = await verify(token, secretKey);
+    username = payload.username as string;
+  } catch {
+    ctx.throw(401);
+    return;
+  }
+
   const ws = ctx.upgrade();
   const playerId = createPlayerId();
   let rejected = false;
@@ -136,6 +152,7 @@ router.get("/ws", (ctx) => {
       kills: 0,
       active: false,
       ready: false,
+      username: username,  // ← ajouter ça
     });
 
     sendUpdatelobby();
@@ -550,6 +567,21 @@ function getTokenFromCookie(ctx: any): string | null {
   return match ? match.split("=")[1] : null;
 }
 
+async function requireAuth(ctx, next) {
+  const token = getTokenFromCookie(ctx);
+  if (!token) {
+    ctx.response.redirect("/login.html");
+    return;
+  }
+  try {
+    await verify(token, secretKey);
+    await next();
+  } catch {
+    clearAuthCookie(ctx);
+    ctx.response.redirect("/login.html");
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Validation des inputs utilisateur
 // ─────────────────────────────────────────────────────────────────────────────
@@ -732,6 +764,24 @@ router.get("/verify", async (ctx) => {
     ctx.response.status = 401;
     ctx.response.body   = { error: "Token invalide ou expiré." };
   }
+});
+
+router.get("/login.html", async (ctx) => {
+  await send(ctx, "login.html", { root: "./public" });
+});
+router.get("/style.css", async (ctx) => {
+  await send(ctx, "style.css", { root: "./public" });
+});
+router.get("/login.js", async (ctx) => {
+  await send(ctx, "login.js", { root: "./public" });
+});
+
+// Route protégée pour index.html
+router.get("/", requireAuth, async (ctx) => {
+  await send(ctx, "index.html", { root: "./public" });
+});
+router.get("/index.html", requireAuth, async (ctx) => {
+  await send(ctx, "index.html", { root: "./public" });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

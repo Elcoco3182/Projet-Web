@@ -29,7 +29,7 @@ CREATE TABLE historiques
 -- Données initiales
 INSERT INTO users
 VALUES (1, 'coco', '$2a$12$ZDAQgOpU7bQiTzPLSQZp7u.jvRpPHEXZ/mTRFiDXXHKPDdFLIEN.C'),  -- Hash de 'pasdemail'
-       (2, 'personne', 'toujourspasdemail@gmail.com');
+       (2, 'personne', '$2a$12$ZDAQgOpU7bQiTzPLSQZp7u.jvRpPHEXZ/mTRFiDXXHKPDdFLIEN.C');
 
 INSERT INTO roles
 VALUES (1, 'innocent'),

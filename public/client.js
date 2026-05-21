@@ -109,6 +109,8 @@ setInterval (() => {
   misAjourAnimationTime();
 }, 500)
 
+displayUsername();
+
 // Input joystick
 let joystickInput = {
   up: false,
@@ -265,8 +267,7 @@ function draw() {
   ctx.translate(-offsetX, -offsetY);
 
   players.forEach((player) => {
-    //drawJoueur(player.x, player.y, player.type);
-    drawJoueurImage(player.x, player.y, player.type);
+    drawJoueurImage(player.x, player.y, player.type, player.username);
   });
   obstacles.forEach((obstacle) => {
     drawObstacle(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -292,36 +293,6 @@ function draw() {
   }
 }
 
-//vieux draw
-function drawJoueur(x, y, type){
-  ctx.save();
-  ctx.translate(x, y);
-
-  //  Draw the body of the player
-  if (isMidnight){
-    switch (type) {
-      case "assassin":
-        ctx.fillStyle = "red";
-        break;  // ← sans ça, il continue et écrase avec "green"
-      case "innocent":
-        ctx.fillStyle = "green";
-        break;
-      case "petitefille":
-        ctx.fillStyle = "blue";
-        break;
-      default:
-        ctx.fillStyle = "green";
-        break;
-    }
-  }
-  else {
-    ctx.fillStyle = "green";
-  }
-  ctx.fillRect(-20, -10, 40, 20);
-
-  ctx.restore();
-}
-
 function preloadImages(callback) {
     const toLoad = ["assassin", "innocent", "petitefille"];
     let loaded = 0;
@@ -337,8 +308,7 @@ function preloadImages(callback) {
 }
 
 
-function drawJoueurImage(x, y, type) {
-
+function drawJoueurImage(x, y, type, username) {
     let sx = 0;
 
     ctx.save();
@@ -346,7 +316,6 @@ function drawJoueurImage(x, y, type) {
     misAjourSourceY();
     sx = returnSourceX();
 
-    //  Draw the body of the player
     if (isMidnight){
         switch (type) {
         case "assassin":
@@ -361,9 +330,17 @@ function drawJoueurImage(x, y, type) {
         default:
             ctx.drawImage(images["innocent"],sx, sy, 64, 64, x-32, y-32, 64, 64);
         }
-    }
-    else {
+    } else {
+      if (!isNight) {
         ctx.drawImage(images["innocent"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+        // ← Affichage du nom sous le joueur
+        ctx.font = "12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "white";
+        ctx.fillText(username ?? "?", x, y + 42);
+        ctx.fillStyle = "black";
+        ctx.fillText(username ?? "?", x + 1, y + 43); // ombre portée pour lisibilité
+      }
     }
 
     ctx.restore();
@@ -558,6 +535,35 @@ function updateZoom() {
   const zoomX = viewportWidth / WORLD_VIEW_WIDTH;
   const zoomY = viewportHeight / WORLD_VIEW_HEIGHT;
   cameraZoom = Math.min(zoomX, zoomY);
+}
+
+// Affiche le nom du joueur connecté en haut à gauche
+async function displayUsername() {
+  const res = await fetch(`http://${location.hostname}:3000/verify`, {
+    credentials: "include"
+  });
+  if (!res.ok) {
+    window.location.href = "/login.html"; // redirige si pas connecté
+    return;
+  }
+  const data = await res.json();
+
+  const label = document.createElement("div");
+  label.style.position = "fixed";
+  label.style.top = "10px";
+  label.style.left = "10px";
+  label.style.fontFamily = "Arial, sans-serif";
+  label.style.fontSize = "16px";
+  label.style.fontWeight = "bold";
+  label.style.color = "#0c0606";
+  label.style.background = "rgba(255,255,255,0.5)";
+  label.style.padding = "6px 12px";
+  label.style.borderRadius = "5px";
+  label.style.border = "2px solid #0c0606";
+  label.style.zIndex = "999";
+  label.textContent = `👤 ${data.username}`;
+
+  document.body.appendChild(label);
 }
 
 socket.onerror = (error) => {
