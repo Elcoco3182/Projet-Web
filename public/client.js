@@ -1,3 +1,4 @@
+
 const socket = new WebSocket(`ws://${location.hostname}:3000/ws`);
 let canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -26,6 +27,11 @@ let rejected = false;
 
 let cameraZoom = 1;
 
+let lastTime = 0;
+let animationTime = 1;
+
+let sy = 0;
+
 canvas.width = window.innerWidth - 30;
 canvas.height = window.innerHeight - 30;
 
@@ -48,32 +54,32 @@ class Joueur {
         this.speed = 1; 
     }
 
-    moveUp() {
-        const newY = this.y - this.speed;
+    moveUp(dt) {
+        const newY = this.y - this.speed * dt * 60;
         if (!collidesWithObstacle(this.x, newY, 40, 20) &&
             newY >= 20) {
             this.y = newY;
         }
     }
 
-    moveDown() {
-        const newY = this.y + this.speed;
+    moveDown(dt) {
+        const newY = this.y + this.speed * dt * 60;
         if (!collidesWithObstacle(this.x, newY, 40, 20) &&
             newY <= mapHeight - 20) {
             this.y = newY;
         }
     }
 
-    moveLeft() {
-        const newX = this.x - this.speed;
+    moveLeft(dt) {
+        const newX = this.x - this.speed * dt * 60;
         if (!collidesWithObstacle(newX, this.y, 40, 20) &&
             newX >= 20) {
             this.x = newX;
         }
     }
 
-    moveRight() {
-        const newX = this.x + this.speed;
+    moveRight(dt) {
+        const newX = this.x + this.speed * dt * 60;
         if (!collidesWithObstacle(newX, this.y, 40, 20) &&
             newX <= mapWidth - 20) {
             this.x = newX;
@@ -98,6 +104,10 @@ class Joueur {
         }
     }
 }
+
+setInterval (() => {
+  misAjourAnimationTime();
+}, 500)
 
 // Input joystick
 let joystickInput = {
@@ -200,7 +210,9 @@ socket.onmessage = (event) => {
 updateZoom();
 
 socket.onopen = () => {
-    gameLoop();
+    preloadImages(() => {
+      gameLoop();
+  });
 };
 
 function update() {
@@ -253,7 +265,8 @@ function draw() {
   ctx.translate(-offsetX, -offsetY);
 
   players.forEach((player) => {
-    drawJoueur(player.x, player.y, player.type);
+    //drawJoueur(player.x, player.y, player.type);
+    drawJoueurImage(player.x, player.y, player.type);
   });
   obstacles.forEach((obstacle) => {
     drawObstacle(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -279,7 +292,7 @@ function draw() {
   }
 }
 
-//à changer en drawJoueur
+//vieux draw
 function drawJoueur(x, y, type){
   ctx.save();
   ctx.translate(x, y);
@@ -307,6 +320,77 @@ function drawJoueur(x, y, type){
   ctx.fillRect(-20, -10, 40, 20);
 
   ctx.restore();
+}
+
+function preloadImages(callback) {
+    const toLoad = ["assassin", "innocent", "petitefille"];
+    let loaded = 0;
+
+    toLoad.forEach(name => {
+        images[name] = new Image();
+        images[name].src = `/assets/images/${name}.png`;
+        images[name].onload = () => {
+            loaded++;
+            if (loaded === toLoad.length) callback();
+        };
+    });
+}
+
+
+function drawJoueurImage(x, y, type) {
+    ctx.save();
+
+    misAjourSourceY();
+
+    const sx = returnSourceX();
+
+    //  Draw the body of the player
+    if (isMidnight){
+        switch (type) {
+        case "assassin":
+            ctx.drawImage(images["assassin"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+            break;
+        case "innocent":
+            ctx.drawImage(images["innocent"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+            break;
+        case "petitefille":
+            ctx.drawImage(images["petitefille"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+            break;
+        default:
+            ctx.drawImage(images["innocent"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+        }
+    }
+    else {
+        ctx.drawImage(images["innocent"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+    }
+
+    ctx.restore();
+}
+
+function misAjourSourceY() {
+    if (keys.ArrowUp == true) sy = 192;
+    if (keys.ArrowLeft == true) sy = 64;
+    if (keys.ArrowRight == true) sy = 128;
+    if (keys.ArrowDown == true) sy = 0;
+}
+
+function misAjourAnimationTime() {
+  if (keys.ArrowDown == true || keys.ArrowRight == true || keys.ArrowLeft == true || keys.ArrowUp == true) {
+    animationTime += 1;
+    if (animationTime > 4) {
+      animationTime = 1;
+    }
+  }
+  else {
+    animationTime = 1;
+  }
+}
+
+function returnSourceX() {
+  if (animationTime == 1) return 0;
+  if (animationTime == 2) return 64;
+  if (animationTime == 3) return 128;
+  if (animationTime == 4) return 192;
 }
 
 function drawObstacle(x, y, width, height) {
@@ -344,18 +428,22 @@ function drawBorder() {
   ctx.restore();
 }
 
-function gameLoop() {
+function gameLoop(timestamp) {
     requestAnimationFrame(gameLoop);
+
+    const deltaTime = lastTime === 0 ? 0 : (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
     if (localJoueur == null) return;
     if (localJoueur.died) return;
     if (socket.readyState !== WebSocket.OPEN) return;
 
-    if (keys.ArrowUp || joystickInput.up) localJoueur.moveUp();
-    if (keys.ArrowDown || joystickInput.down) localJoueur.moveDown();
-    if (keys.ArrowLeft || joystickInput.left) localJoueur.moveLeft();
-    if (keys.ArrowRight || joystickInput.right) localJoueur.moveRight();
+    if (keys.ArrowUp    || joystickInput.up)          localJoueur.moveUp(deltaTime);
+    if (keys.ArrowDown  || joystickInput.down)        localJoueur.moveDown(deltaTime);
+    if (keys.ArrowLeft  || joystickInput.left)        localJoueur.moveLeft(deltaTime);
+    if (keys.ArrowRight || joystickInput.right)       localJoueur.moveRight(deltaTime);
 
-    if (keys.Spacebar || joystickInput.killBoutton) localJoueur.tryKill();
+    if (keys.Spacebar   || joystickInput.killBoutton) localJoueur.tryKill();
 
     update();
     draw();
