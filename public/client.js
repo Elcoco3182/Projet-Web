@@ -37,6 +37,8 @@ let viewportHeight = canvas.height;
 
 canvas.style.display = "none";
 
+const images = {};
+
 class Joueur {
     constructor(x, y) {
         this.id = 0;
