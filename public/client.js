@@ -56,7 +56,7 @@ class Joueur {
 
     moveUp(dt) {
         const newY = this.y - this.speed * dt * 60;
-        if (!collidesWithObstacle(this.x, newY, 40, 20) &&
+        if (!collidesWithObstacle(this.x, newY, 40, 40) &&
             newY >= 20) {
             this.y = newY;
         }
@@ -64,7 +64,7 @@ class Joueur {
 
     moveDown(dt) {
         const newY = this.y + this.speed * dt * 60;
-        if (!collidesWithObstacle(this.x, newY, 40, 20) &&
+        if (!collidesWithObstacle(this.x, newY, 40, 40) &&
             newY <= mapHeight - 20) {
             this.y = newY;
         }
@@ -72,7 +72,7 @@ class Joueur {
 
     moveLeft(dt) {
         const newX = this.x - this.speed * dt * 60;
-        if (!collidesWithObstacle(newX, this.y, 40, 20) &&
+        if (!collidesWithObstacle(newX, this.y, 40, 40) &&
             newX >= 20) {
             this.x = newX;
         }
@@ -80,7 +80,7 @@ class Joueur {
 
     moveRight(dt) {
         const newX = this.x + this.speed * dt * 60;
-        if (!collidesWithObstacle(newX, this.y, 40, 20) &&
+        if (!collidesWithObstacle(newX, this.y, 40, 40) &&
             newX <= mapWidth - 20) {
             this.x = newX;
         }
@@ -338,11 +338,13 @@ function preloadImages(callback) {
 
 
 function drawJoueurImage(x, y, type) {
+
+    let sx = 0;
+
     ctx.save();
 
     misAjourSourceY();
-
-    const sx = returnSourceX();
+    sx = returnSourceX();
 
     //  Draw the body of the player
     if (isMidnight){
