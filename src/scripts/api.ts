@@ -1,4 +1,4 @@
-import { Pool } from "jsr:@db/postgres";
+import { Pool } from "@db/postgres";
 
 const pool = new Pool({
   hostname: Deno.env.get("POSTGRES_HOST") ?? "db",

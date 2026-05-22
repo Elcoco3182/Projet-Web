@@ -1,6 +1,6 @@
 // deno test --allow-env tests/auth.test.ts
 
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 
 // ── Copie locale des fonctions pures de server.ts ──────────────────────────
 // Idéalement, tu les extrais dans src/utils/validators.ts et tu importes d'ici.

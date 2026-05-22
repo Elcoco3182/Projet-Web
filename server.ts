@@ -1,8 +1,8 @@
-import { Application, Router } from "jsr:@oak/oak";
+import { Application, Router, Context } from "@oak/oak";
 //import { Application, Context, Router } from "https://deno.land/x/oak@v17.1.6/mod.ts";
-import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
-import { create, verify } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
-import bcrypt from "npm:bcryptjs@2.4.3";
+import { oakCors } from "@deno.land/x/cors";
+import { create, verify } from "@deno/djwt";
+import bcrypt from "bcryptjs";
 //import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 
 // ==================== CONFIG DB ====================
@@ -33,7 +33,7 @@ const router = new Router();
 const app = new Application();
 
 const sockets = new Map();
-let players = new Map();
+const players = new Map();
 // des booleans pour savoir à quel moment du cycle jour nuit on est
 let isMorning = false;
 let isNoon = false;
@@ -44,7 +44,7 @@ let isMidnight = false;
 const mapHeight = 700;
 const mapWidth = 1200;
 
-let obstacles = generateRandomObstacles();
+const obstacles = generateRandomObstacles();
 
 setInterval(() => {
   switchDayTime();
@@ -222,7 +222,7 @@ function activatePlayer(playerId: string, joueurType: string) {
   }
 }
 
-async function sendKilled(playerId: string) {
+function sendKilled(playerId: string) {
   const data = JSON.stringify({ type: "killed", playerId });
   sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -423,21 +423,21 @@ function isRateLimited(ip: string): boolean {
 // Helpers cookie et token
 // ─────────────────────────────────────────────────────────────────────────────
 
-function setAuthCookie(ctx: any, token: string): void {
+function setAuthCookie(ctx: Context, token: string): void {
   ctx.response.headers.set(
     "Set-Cookie",
     `auth_token=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`,
   );
 }
 
-function clearAuthCookie(ctx: any): void {
+function clearAuthCookie(ctx: Context): void {
   ctx.response.headers.set(
     "Set-Cookie",
     `auth_token=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`,
   );
 }
 
-function getTokenFromCookie(ctx: any): string | null {
+function getTokenFromCookie(ctx: Context): string | null {
   const cookie = ctx.request.headers.get("cookie") ?? "";
   const match = cookie.split("; ").find((row: string) =>
     row.startsWith("auth_token=")
