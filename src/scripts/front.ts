@@ -1,5 +1,5 @@
-import { Application } from "https://deno.land/x/oak@v17.1.6/mod.ts";
-import * as path from "https://deno.land/std@0.188.0/path/mod.ts";
+import { Application } from "@oak/oak";
+import * as path from "@std/path";
 
 const PORT = parseInt(Deno.env.get("FRONT_PORT") ?? "8080");
 //const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
