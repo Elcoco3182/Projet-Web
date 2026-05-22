@@ -89,6 +89,56 @@ mkcert -install
 mkcert localhost 127.0.0.1 ::1
 ```
 
+## Pipeline CI GitLab
+
+Le pipeline se déclenche automatiquement à chaque push. Il comprend 3 stages :
+
+| Stage   | Job                              | Déclencheur               |
+|---------|----------------------------------|---------------------------|
+| `lint`  | `deno fmt --check` + `deno lint` | toutes les branches       |
+| `test`  | `deno test tests/`               | toutes les branches       |
+| `build` | build + push des 4 images Docker | branche `main` uniquement |
+
+### Setup initial (une seule fois)
+
+```bash
+# Installer les hooks git
+pre-commit install
+```
+
+### Workflow quotidien
+
+```bash
+# Formater avant de commit (obligatoire, vérifié par la CI)
+deno fmt
+```
+
+> Le hook pre-commit lance `deno fmt --check` et `deno lint` automatiquement à chaque `git commit`.
+> Si le hook bloque, corriger avec `deno fmt` puis relancer le commit.
+
+### Règles
+
+- Ne jamais committer `.env` (contient les secrets)
+- Passer par une branche dédiée, merger sur `main` uniquement quand lint + test sont verts
+- Utiliser des **bare specifiers** pour les imports Deno (définis dans `deno.json`) :
+```ts
+// ✅ Correct
+import { Application } from "@oak/oak";
+ 
+// ❌ À éviter
+import { Application } from "jsr:@oak/oak@^17.1.4";
+```
+
+### Fins de ligne (Windows)
+
+Sur Windows, configurer Git pour ne pas convertir les fins de ligne :
+
+```bash
+git config core.autocrlf false
+```
+
+Sans ça, `deno fmt --check` échouera en CI.
+
 ## Licence
 
 à définir
