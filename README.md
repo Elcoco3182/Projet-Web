@@ -94,7 +94,7 @@ mkcert localhost 127.0.0.1 ::1
 Le pipeline se déclenche automatiquement à chaque push. Il comprend 3 stages :
 
 | Stage   | Job                              | Déclencheur               |
-|---------|----------------------------------|---------------------------|
+| ------- | -------------------------------- | ------------------------- |
 | `lint`  | `deno fmt --check` + `deno lint` | toutes les branches       |
 | `test`  | `deno test tests/`               | toutes les branches       |
 | `build` | build + push des 4 images Docker | branche `main` uniquement |
@@ -113,18 +113,22 @@ pre-commit install
 deno fmt
 ```
 
-> Le hook pre-commit lance `deno fmt --check` et `deno lint` automatiquement à chaque `git commit`.
-> Si le hook bloque, corriger avec `deno fmt` puis relancer le commit.
+> Le hook pre-commit lance `deno fmt --check` et `deno lint` automatiquement à
+> chaque `git commit`. Si le hook bloque, corriger avec `deno fmt` puis relancer
+> le commit.
 
 ### Règles
 
 - Ne jamais committer `.env` (contient les secrets)
-- Passer par une branche dédiée, merger sur `main` uniquement quand lint + test sont verts
-- Utiliser des **bare specifiers** pour les imports Deno (définis dans `deno.json`) :
+- Passer par une branche dédiée, merger sur `main` uniquement quand lint + test
+  sont verts
+- Utiliser des **bare specifiers** pour les imports Deno (définis dans
+  `deno.json`) :
+
 ```ts
 // ✅ Correct
 import { Application } from "@oak/oak";
- 
+
 // ❌ À éviter
 import { Application } from "jsr:@oak/oak@^17.1.4";
 ```
