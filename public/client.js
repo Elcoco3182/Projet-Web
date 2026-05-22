@@ -218,10 +218,16 @@ socket.onopen = () => {
 };
 
 function update() {
+    let direction;
+    if (keys.ArrowDown == true) direction = "down";
+    if (keys.ArrowUp == true) direction = "up";
+    if (keys.ArrowRight == true) direction = "right";
+    if (keys.ArrowLeft == true) direction = "left";
     let data = {
         type: "update",
         x: localJoueur.x,
         y: localJoueur.y,
+        d: direction,
     };
     socket.send(JSON.stringify(data));
 }
@@ -266,11 +272,14 @@ function draw() {
   ctx.scale(cameraZoom, cameraZoom);
   ctx.translate(-offsetX, -offsetY);
 
-  players.forEach((player) => {
-    drawJoueurImage(player.x, player.y, player.type, player.username);
-  });
+
+
   obstacles.forEach((obstacle) => {
     drawObstacle(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+  });
+  drawMap();
+  players.forEach((player) => {
+    drawJoueurImage(player.x, player.y, player);
   });
 
   ctx.restore();
@@ -294,7 +303,7 @@ function draw() {
 }
 
 function preloadImages(callback) {
-    const toLoad = ["assassin", "innocent", "petitefille"];
+    const toLoad = ["assassin", "innocent", "petitefille", "mapImage"];
     let loaded = 0;
 
     toLoad.forEach(name => {
@@ -308,42 +317,71 @@ function preloadImages(callback) {
 }
 
 
-function drawJoueurImage(x, y, type, username) {
-    let sx = 0;
+function drawJoueurImage(x, y, player) {
+    let localSx = 0;
+    let localSy = 0;
+
+    if (localJoueur.id === player.id) {
+      misAjourSourceY();        // met à jour sy global (direction)
+      localSx = returnSourceX(); // frame d'animation
+      localSy = sy;              // direction courante
+    }
+    else {
+      switch (player.d){
+        case "down":
+          localSy = 0;
+          break;
+        case "right":
+          localSy = 128;
+          break;
+        case "left":
+          localSy = 64;
+          break;
+        case "up":
+          localSy = 192;
+          break;
+      }
+    }
+    
 
     ctx.save();
 
-    misAjourSourceY();
-    sx = returnSourceX();
-
     if (isMidnight){
-        switch (type) {
+        switch (player.type) {
         case "assassin":
-            ctx.drawImage(images["assassin"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+            ctx.drawImage(images["assassin"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
             break;
         case "innocent":
-            ctx.drawImage(images["innocent"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+            ctx.drawImage(images["innocent"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
             break;
         case "petitefille":
-            ctx.drawImage(images["petitefille"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+            ctx.drawImage(images["petitefille"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
             break;
         default:
-            ctx.drawImage(images["innocent"],sx, sy, 64, 64, x-32, y-32, 64, 64);
+            ctx.drawImage(images["innocent"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
         }
     } else {
+
+      ctx.drawImage(images["innocent"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
+
       if (!isNight) {
-        ctx.drawImage(images["innocent"],sx, sy, 64, 64, x-32, y-32, 64, 64);
         // ← Affichage du nom sous le joueur
         ctx.font = "12px Arial";
         ctx.textAlign = "center";
         ctx.fillStyle = "white";
-        ctx.fillText(username ?? "?", x, y + 42);
+        ctx.fillText(player.username ?? "?", x, y + 42);
         ctx.fillStyle = "black";
-        ctx.fillText(username ?? "?", x + 1, y + 43); // ombre portée pour lisibilité
+        ctx.fillText(player.username ?? "?", x + 1, y + 43); // ombre portée pour lisibilité
       }
     }
 
     ctx.restore();
+}
+
+function drawMap() {
+  ctx.save();
+  ctx.drawImage(images["mapImage"],0, 0, 4000, 1550, 0, 0, 4000, 1550);
+  ctx.restore();
 }
 
 function misAjourSourceY() {
@@ -382,8 +420,8 @@ function collidesWithObstacle(x, y, width, height) {
     if (
       x + width / 2 > obstacle.x + 6 &&
       x - width / 2 < obstacle.x + obstacle.width - 6 &&
-      y + height / 2 > obstacle.y + 6 &&
-      y - height / 2 < obstacle.y + obstacle.height - 6
+      y + height / 2 > obstacle.y - 6 &&
+      y - height / 2 < obstacle.y + obstacle.height - 18
     ) {
       return true;
     }
@@ -547,6 +585,8 @@ async function displayUsername() {
     return;
   }
   const data = await res.json();
+
+  localJoueur.username = data.username;
 
   const label = document.createElement("div");
   label.style.position = "fixed";

@@ -303,11 +303,12 @@ function createPlayerId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
-function updatePlayer(playerId: string, data: { x: number; y: number }) {
+function updatePlayer(playerId: string, data: { x: number; y: number; d: string }) {
   const player = players.get(playerId);
   if (player) {
     player.x = data.x;
     player.y = data.y;
+    player.d = data.d;
   }
 }
 
