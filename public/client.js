@@ -1,4 +1,4 @@
-const socket = new WebSocket(`ws://${location.hostname}:3000/ws`);
+const socket = new WebSocket(`wss://${location.hostname}:3000/ws`);
 let canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 

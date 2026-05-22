@@ -51,6 +51,7 @@ setInterval(() => {
 
 console.log("Server listening on port 8080");
 
+
 // ==================== CRÉATION DE LA PARTIE ====================
 
 let currentPartyId: number | null = null;
@@ -350,7 +351,7 @@ function getCurrentDayTime() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = parseInt(Deno.env.get("API_PORT") ?? "3000");
-const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "http://localhost:8080";
+const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "https://localhost:8080";
 
 // Vérification: le secret JWT doit être défini explicitement
 const JWT_SECRET = Deno.env.get("JWT_SECRET");
@@ -638,4 +639,11 @@ app.use(async (ctx, next) => {
 console.log("Server listening on port 3000");
 app.use(router.routes());
 app.use(router.allowedMethods());
-await app.listen({ port: PORT });
+// ==================== HTTPS ====================
+
+await app.listen({
+  port: PORT,
+  secure: true,
+  cert: await Deno.readTextFile("./certs/localhost+2.pem"),
+  key: await Deno.readTextFile("./certs/localhost+2-key.pem"),
+});

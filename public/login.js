@@ -10,7 +10,7 @@ async function VerifyUser(){
     };
 
     try {
-        const rep = await fetch("http://localhost:3000/login", {
+        const rep = await fetch("https://localhost:3000/login", {
             method: "POST",
             credentials: "include",
             headers: {

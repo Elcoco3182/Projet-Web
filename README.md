@@ -63,6 +63,27 @@ Prjet-Web/
             api.ts
             front.ts
 ```
+
+
+## Initialisation
+
+Installer mkcert et créer un faux certificat, qu'il faut mettredans le dossier /certs \
+( https://github.com/FiloSottile/mkcert/releases )
+
+windows :
+```bash
+choco install mkcert
+mkcert -install
+mkcert localhost 127.0.0.1 ::1
+```
+
+linux :
+```bash
+sudo apt install mkcert
+mkcert -install
+mkcert localhost 127.0.0.1 ::1
+```
+
 ## Licence
 
 à définir
