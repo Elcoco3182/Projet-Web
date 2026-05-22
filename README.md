@@ -103,7 +103,11 @@ Le pipeline se déclenche automatiquement à chaque push. Il comprend 3 stages :
 
 ```bash
 # Installer les hooks git
+# Sur linux :
 pre-commit install
+
+# Sur windows :
+pip install pre-commit
 ```
 
 ### Workflow quotidien
