@@ -7,19 +7,22 @@
 ![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E)
 ![HTML5](https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white)
 ![CSS](https://img.shields.io/badge/css-%23663399.svg?style=for-the-badge&logo=css&logoColor=white)
+
 ## Présentation
 
 Création d'un petit jeu en multijoueur de stratégie en temps réel.
 
 ## Architecture et Sécurité
 
-Front : HTML/CSS/JS \
-Back : deno + websocket + TypeScript \
-BDD : PostgreSQL \
-Deploiement : Docker Compose \
-Sécurité : HTTPS, CORS, Password hash sel et poivre, Cookies sécurisé, Access Token
+Front : HTML/CSS/JS\
+Back : deno + websocket + TypeScript\
+BDD : PostgreSQL\
+Deploiement : Docker Compose\
+Sécurité : HTTPS, CORS, Password hash sel et poivre, Cookies sécurisé, Access
+Token
 
 ## Structure
+
 ```
 Prjet-Web/
 │   .dockerignore
@@ -64,13 +67,14 @@ Prjet-Web/
             front.ts
 ```
 
-
 ## Initialisation
 
-Installer mkcert et créer un faux certificat, qu'il faut mettredans le dossier /certs \
+Installer mkcert et créer un faux certificat, qu'il faut mettredans le dossier
+/certs\
 ( https://github.com/FiloSottile/mkcert/releases )
 
 windows :
+
 ```bash
 choco install mkcert
 mkcert -install
@@ -78,6 +82,7 @@ mkcert localhost 127.0.0.1 ::1
 ```
 
 linux :
+
 ```bash
 sudo apt install mkcert
 mkcert -install

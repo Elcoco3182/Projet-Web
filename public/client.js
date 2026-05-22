@@ -29,79 +29,86 @@ let viewportHeight = canvas.height;
 
 canvas.style.display = "none";
 
-
 // Affiche que la connexion (ws) est en train de se faire
 const submitBtn = document.querySelector("#joueurTypeForm button");
 submitBtn.disabled = true;
 submitBtn.textContent = "Connexion...";
 
 class Joueur {
-    constructor(x, y) {
-        this.id = 0;
-        this.x = x;
-        this.y = y;
-        this.died = false;
-        this.speed = 1; 
-    }
+  constructor(x, y) {
+    this.id = 0;
+    this.x = x;
+    this.y = y;
+    this.died = false;
+    this.speed = 1;
+  }
 
-    moveUp() {
-        const newY = this.y - this.speed;
-        if (!collidesWithObstacle(this.x, newY, 40, 20) &&
-            newY >= 20) {
-            this.y = newY;
-        }
+  moveUp() {
+    const newY = this.y - this.speed;
+    if (
+      !collidesWithObstacle(this.x, newY, 40, 20) &&
+      newY >= 20
+    ) {
+      this.y = newY;
     }
+  }
 
-    moveDown() {
-        const newY = this.y + this.speed;
-        if (!collidesWithObstacle(this.x, newY, 40, 20) &&
-            newY <= mapHeight - 20) {
-            this.y = newY;
-        }
+  moveDown() {
+    const newY = this.y + this.speed;
+    if (
+      !collidesWithObstacle(this.x, newY, 40, 20) &&
+      newY <= mapHeight - 20
+    ) {
+      this.y = newY;
     }
+  }
 
-    moveLeft() {
-        const newX = this.x - this.speed;
-        if (!collidesWithObstacle(newX, this.y, 40, 20) &&
-            newX >= 20) {
-            this.x = newX;
-        }
+  moveLeft() {
+    const newX = this.x - this.speed;
+    if (
+      !collidesWithObstacle(newX, this.y, 40, 20) &&
+      newX >= 20
+    ) {
+      this.x = newX;
     }
+  }
 
-    moveRight() {
-        const newX = this.x + this.speed;
-        if (!collidesWithObstacle(newX, this.y, 40, 20) &&
-            newX <= mapWidth - 20) {
-            this.x = newX;
-        }
+  moveRight() {
+    const newX = this.x + this.speed;
+    if (
+      !collidesWithObstacle(newX, this.y, 40, 20) &&
+      newX <= mapWidth - 20
+    ) {
+      this.x = newX;
     }
+  }
 
-// regarde si c la nuit
-    canKill() {
-        return isMidnight && (localJoueur.type==="assassin");
-    }
-    tryKill() {
-        // Cherche un joueur proche dans la liste reçue du serveur
-        const target = players.find(p => {
-            if (p.id === localJoueur.id) return false;
-            const dx = p.x - localJoueur.x;
-            const dy = p.y - localJoueur.y;
-            return (Math.sqrt(dx*dx + dy*dy) < 80); // portée de 50px
-        });
+  // regarde si c la nuit
+  canKill() {
+    return isMidnight && (localJoueur.type === "assassin");
+  }
+  tryKill() {
+    // Cherche un joueur proche dans la liste reçue du serveur
+    const target = players.find((p) => {
+      if (p.id === localJoueur.id) return false;
+      const dx = p.x - localJoueur.x;
+      const dy = p.y - localJoueur.y;
+      return (Math.sqrt(dx * dx + dy * dy) < 80); // portée de 50px
+    });
 
-        if (target && this.canKill()) {
-            socket.send(JSON.stringify({type: "kill", targetId: target.id}));
-        }
+    if (target && this.canKill()) {
+      socket.send(JSON.stringify({ type: "kill", targetId: target.id }));
     }
+  }
 }
 
 // Input handling
 let keys = {
-    ArrowUp: false,
-    ArrowRight: false,
-    ArrowLeft: false,
-    ArrowDown: false,
-    Spacebar: false,
+  ArrowUp: false,
+  ArrowRight: false,
+  ArrowLeft: false,
+  ArrowDown: false,
+  Spacebar: false,
 };
 
 document.addEventListener("keydown", (e) => {
@@ -127,76 +134,76 @@ document.addEventListener("keyup", (e) => {
 });
 
 socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    switch (data.type) {
-        case "roles": {
-            const select = document.getElementById("joueurType");
-            select.innerHTML = "";
-            data.roles.forEach(role => {
-                const option = document.createElement("option");
-                option.value = role.name;
-                option.textContent = role.name.charAt(0).toUpperCase() + role.name.slice(1);
-                select.appendChild(option);
-            });
-            break;
-        }
-        case "update":
-          players = data.players;
-          obstacles = data.obstacles;
-          break;
-        case "killed":
-          if (data.playerId === localJoueur.id) {
-            displayKilledMessage();
-          }
-          break;
-        case "playerId":
-          localJoueur = new Joueur(data.startX, data.startY);
-          localJoueur.id = data.playerId;
-          break;
-        case "mapSize":
-          mapWidth = data.width;
-          mapHeight = data.height;
-          break;
-        case "isMorning":
-          isMidnight = false;
-          isMorning = true;
-          break;
-        case "isNoon":
-          isMorning = false;
-          isNoon = true;
-          break;
-        case "isAfternoon":
-          isNoon = false;
-          isAfternoon = true;
-          break;
-        case "isNight":
-          isAfternoon = false;
-          isNight = true;
-          break;
-        case "isMidnight":
-          isNight = false;
-          isMidnight = true;
-          break;
+  const data = JSON.parse(event.data);
+  switch (data.type) {
+    case "roles": {
+      const select = document.getElementById("joueurType");
+      select.innerHTML = "";
+      data.roles.forEach((role) => {
+        const option = document.createElement("option");
+        option.value = role.name;
+        option.textContent = role.name.charAt(0).toUpperCase() +
+          role.name.slice(1);
+        select.appendChild(option);
+      });
+      break;
     }
+    case "update":
+      players = data.players;
+      obstacles = data.obstacles;
+      break;
+    case "killed":
+      if (data.playerId === localJoueur.id) {
+        displayKilledMessage();
+      }
+      break;
+    case "playerId":
+      localJoueur = new Joueur(data.startX, data.startY);
+      localJoueur.id = data.playerId;
+      break;
+    case "mapSize":
+      mapWidth = data.width;
+      mapHeight = data.height;
+      break;
+    case "isMorning":
+      isMidnight = false;
+      isMorning = true;
+      break;
+    case "isNoon":
+      isMorning = false;
+      isNoon = true;
+      break;
+    case "isAfternoon":
+      isNoon = false;
+      isAfternoon = true;
+      break;
+    case "isNight":
+      isAfternoon = false;
+      isNight = true;
+      break;
+    case "isMidnight":
+      isNight = false;
+      isMidnight = true;
+      break;
+  }
 };
 
 socket.onopen = () => {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Start Game";
-    gameLoop();
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Start Game";
+  gameLoop();
 };
 
 function update() {
-    let data = {
-        type: "update",
-        x: localJoueur.x,
-        y: localJoueur.y,
-    };
-    socket.send(JSON.stringify(data));
+  let data = {
+    type: "update",
+    x: localJoueur.x,
+    y: localJoueur.y,
+  };
+  socket.send(JSON.stringify(data));
 }
 
 function draw() {
-
   document.getElementById("dayTime").innerText = getCurrentDayTime();
 
   ctx.fillStyle = "gray";
@@ -205,8 +212,14 @@ function draw() {
   const currentPlayer = players.find((player) => player.id === localJoueur.id);
   if (!currentPlayer) return;
 
-  const offsetX = Math.min(Math.max(currentPlayer.x - viewportWidth / 2, 0), mapWidth - viewportWidth);
-  const offsetY = Math.min(Math.max(currentPlayer.y - viewportHeight / 2, 0), mapHeight - viewportHeight);
+  const offsetX = Math.min(
+    Math.max(currentPlayer.x - viewportWidth / 2, 0),
+    mapWidth - viewportWidth,
+  );
+  const offsetY = Math.min(
+    Math.max(currentPlayer.y - viewportHeight / 2, 0),
+    mapHeight - viewportHeight,
+  );
 
   ctx.save();
 
@@ -223,22 +236,27 @@ function draw() {
   ctx.restore();
 
   if (isNight || isMidnight) {
-    applyNightMask(ctxNight, localJoueur.x - offsetX, localJoueur.y - offsetY, 150);
+    applyNightMask(
+      ctxNight,
+      localJoueur.x - offsetX,
+      localJoueur.y - offsetY,
+      150,
+    );
     ctx.drawImage(canvasNight, 0, 0);
   }
 }
 
 //à changer en drawJoueur
-function drawJoueur(x, y, type){
+function drawJoueur(x, y, type) {
   ctx.save();
   ctx.translate(x, y);
 
   //  Draw the body of the player
-  if (isMidnight){
+  if (isMidnight) {
     switch (type) {
       case "assassin":
         ctx.fillStyle = "red";
-        break;  // ← sans ça, il continue et écrase avec "green"
+        break; // ← sans ça, il continue et écrase avec "green"
       case "innocent":
         ctx.fillStyle = "green";
         break;
@@ -246,8 +264,7 @@ function drawJoueur(x, y, type){
         ctx.fillStyle = "blue";
         break;
     }
-  }
-  else {
+  } else {
     ctx.fillStyle = "green";
   }
   ctx.fillRect(-20, -10, 40, 20);
@@ -272,7 +289,7 @@ function collidesWithObstacle(x, y, width, height) {
     }
   }
   return false;
-}   
+}
 
 function drawBorder(offsetX, offsetY) {
   ctx.save();
@@ -293,23 +310,23 @@ function drawBorder(offsetX, offsetY) {
 }
 
 function gameLoop() {
-    requestAnimationFrame(gameLoop);
-    if (localJoueur == null) return;
-    if (localJoueur.died) return;
-    if (socket.readyState !== WebSocket.OPEN) return;
+  requestAnimationFrame(gameLoop);
+  if (localJoueur == null) return;
+  if (localJoueur.died) return;
+  if (socket.readyState !== WebSocket.OPEN) return;
 
-    if (keys.ArrowUp) localJoueur.moveUp();
-    if (keys.ArrowDown) localJoueur.moveDown();
-    if (keys.ArrowLeft) localJoueur.moveLeft();
-    if (keys.ArrowRight) localJoueur.moveRight();
+  if (keys.ArrowUp) localJoueur.moveUp();
+  if (keys.ArrowDown) localJoueur.moveDown();
+  if (keys.ArrowLeft) localJoueur.moveLeft();
+  if (keys.ArrowRight) localJoueur.moveRight();
 
-    if (keys.Spacebar) localJoueur.tryKill();
+  if (keys.Spacebar) localJoueur.tryKill();
 
-    update();
-    draw();
+  update();
+  draw();
 }
 
-window.addEventListener('resize', function() {
+window.addEventListener("resize", function () {
   canvas.width = window.innerWidth - 25;
   canvas.height = window.innerHeight - 25;
 
@@ -340,19 +357,22 @@ function setJoueurAttributes(JoueurRole) {
 }
 
 // à changer pour recup le rôle du joueur
-document.getElementById("joueurTypeForm").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const joueurType = document.getElementById("joueurType").value;
-  setJoueurAttributes(joueurType);
-  document.getElementById("popup").style.display = "none";
-  canvas.style.display = "block";
+document.getElementById("joueurTypeForm").addEventListener(
+  "submit",
+  (event) => {
+    event.preventDefault();
+    const joueurType = document.getElementById("joueurType").value;
+    setJoueurAttributes(joueurType);
+    document.getElementById("popup").style.display = "none";
+    canvas.style.display = "block";
 
-  const data = {
-    type: "activatePlayer",
-    joueurType: joueurType,
-  };
-  socket.send(JSON.stringify(data));
-});
+    const data = {
+      type: "activatePlayer",
+      joueurType: joueurType,
+    };
+    socket.send(JSON.stringify(data));
+  },
+);
 
 function displayKilledMessage() {
   localJoueur.died = true;
@@ -365,7 +385,8 @@ function displayKilledMessage() {
   messageElement.style.fontSize = "24px";
   messageElement.style.fontWeight = "bold";
   messageElement.style.color = "red";
-  messageElement.innerHTML = "You have beeeeeeen killed <br> <br> <a href='javascript:void(0);' onclick='window.location.reload();'>Play again</a>";
+  messageElement.innerHTML =
+    "You have beeeeeeen killed <br> <br> <a href='javascript:void(0);' onclick='window.location.reload();'>Play again</a>";
 
   document.body.appendChild(messageElement);
 }
@@ -387,10 +408,9 @@ function displayErrorMessage(message) {
 
 function applyNightMask(ctxNight, px, py, radius) {
   var rad = radius;
-  if (localJoueur.type === "assassin"){
+  if (localJoueur.type === "assassin") {
     rad *= 1.7;
-  }
-  else if (localJoueur.type === "petiteFille"){
+  } else if (localJoueur.type === "petiteFille") {
     rad *= 2.5;
   }
   ctxNight.save();
@@ -398,14 +418,21 @@ function applyNightMask(ctxNight, px, py, radius) {
   ctxNight.clearRect(0, 0, canvasNight.width, canvasNight.height);
 
   // Couche noire totale
-  ctxNight.fillStyle = 'rgba(0, 0, 0, 0.95)';
+  ctxNight.fillStyle = "rgba(0, 0, 0, 0.95)";
   ctxNight.fillRect(0, 0, canvas.width, canvas.height);
 
   // Trou circulaire avec dégradé
-  ctxNight.globalCompositeOperation = 'destination-out';
-  const gradient = ctxNight.createRadialGradient(px, py, rad * 0.6, px, py, rad);
-  gradient.addColorStop(0, 'rgba(0,0,0,1)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  ctxNight.globalCompositeOperation = "destination-out";
+  const gradient = ctxNight.createRadialGradient(
+    px,
+    py,
+    rad * 0.6,
+    px,
+    py,
+    rad,
+  );
+  gradient.addColorStop(0, "rgba(0,0,0,1)");
+  gradient.addColorStop(1, "rgba(0,0,0,0)");
   ctxNight.fillStyle = gradient;
   ctxNight.beginPath();
   ctxNight.arc(px, py, rad, 0, Math.PI * 2);
