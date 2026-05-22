@@ -10,8 +10,6 @@ variables:
 # ── Image Deno réutilisée par lint et test ─────────────────────────────────
 .deno:
   image: denoland/deno:alpine-$DENO_VERSION
-  tags:
-    - shared-runner-1
 
 # ── Stage 1 : Lint ─────────────────────────────────────────────────────────
 lint:
@@ -33,8 +31,6 @@ test:
 .build-image:
   stage: build
   image: docker:27
-  tags:
-    - shared-runner-1
   services:
     - docker:27-dind
   variables:
