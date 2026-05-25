@@ -119,3 +119,18 @@ async function register() {
     setLoading("btn-register", false);
   }
 }
+
+
+// ── Touche Entrée pour soumettre ──────────────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const loginVisible = !document.getElementById("form-login").hidden;
+  loginVisible ? login() : register();
+});
+
+// ── Labels des boutons (pour setLoading) ─────────────────────────────────────
+document.getElementById("btn-login").dataset.label    = "Entrer dans le batiment Polytech";
+document.getElementById("btn-register").dataset.label = "Rejoindre le batiment Polytech";
+
+
+
