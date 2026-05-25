@@ -1,21 +1,29 @@
 
+// ── Login────
+const API_BASE = `${location.protocol}//${location.hostname}:3000`;
 
 async function VerifyUser(){
     let username_id = document.getElementById("username");
     let password_id = document.getElementById("password");
 
-    const user_info = {
-        username : username_id.value,
-        password : password_id.value
-    };
+    // MODIFIÉ : .trim() pour supprimer les espaces accidentels
+    const username = username_id.value.trim();
+    const password = password_id.value;
+
+    // AJOUTÉ : validation avant d'envoyer la requête
+    if (!username || !password) {
+        alert("Veuillez remplir tous les champs.");
+        return;
+    }
+
+    const user_info = { username, password };
 
     try {
-        const rep = await fetch("http://localhost:3000/login", {
+        // MODIFIÉ : API_BASE à la place de "http://localhost:3000"
+        const rep = await fetch(`${API_BASE}/login`, {
             method: "POST",
             credentials: "include",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(user_info)
         });
 
