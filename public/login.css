@@ -1,0 +1,70 @@
+
+:root {
+  --red:        #e63946;
+  --red-dark:   #8b1a22;
+  --cyan:       #00d4ff;
+  --purple:     #6b21d6;
+  --purple-lt:  #9b59ff;
+  --gold:       #c8a84b;
+  --moon:       #f0e0b0;
+  --text:       #e8e0d5;
+  --muted:      #6a6070;
+  --card-bg:    rgba(6, 4, 16, 0.82);
+  --card-bdr:   rgba(155, 89, 255, 0.2);
+  --input-bg:   rgba(255,255,255,0.035);
+  --input-bdr:  rgba(255,255,255,0.09);
+  --font-title: 'Cinzel Decorative', serif;
+  --font-body:  'Crimson Pro', Georgia, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  font-size: 17px;
+  color: var(--text);
+  background: #02010a;
+}
+
+/* ── Canvas plein écran ──*/
+#scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none; /* la souris passe à travers vers la carte */
+}
+
+/* ── Carte flottante ── */
+.card-wrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  perspective: 900px; /* on rajoute perspective car nécessaire pour l'effet 3D */
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-bdr);
+  border-radius: 20px;
+  padding: 2rem 2.2rem 2.4rem;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 40px 90px rgba(0,0,0,0.8),
+    0 0 80px rgba(107,33,214,0.1);
+  transform-style: preserve-3d;
+  /* transition douce sauf quand on suit la souris */
+  transition: transform 0.08s ease;
+  animation: card-in 0.8s cubic-bezier(0.16,1,0.3,1) both;
+}
+
