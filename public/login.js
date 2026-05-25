@@ -78,3 +78,44 @@ async function login(){
         setLoading("login_button", false);
     }
 }
+
+// ── Inscription ───────────────────────────────────────────────────────────────
+async function register() {
+  clearErrors();
+  const username = document.getElementById("reg-username").value.trim();
+  const password = document.getElementById("reg-password").value;
+  const confirm  = document.getElementById("reg-confirm").value;
+
+  if (!username || !password || !confirm) {
+    showError("register-error", "Veuillez remplir tous les champs.");
+    return;
+  }
+  if (password !== confirm) {
+    showError("register-error", "Les mots de passe ne correspondent pas.");
+    return;
+  }
+  if (password.length < 8) {
+    showError("register-error", "Le mot de passe doit contenir au moins 8 caractères.");
+    return;
+  }
+
+  setLoading("btn-register", true);
+  try {
+    const res = await fetch(`${API_BASE}/register`, {
+      method:      "POST",
+      credentials: "include",
+      headers:     { "Content-Type": "application/json" },
+      body:        JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = "/index.html";
+    } else {
+      showError("register-error", data.error ?? "Erreur lors de la création du compte.");
+    }
+  } catch {
+    showError("register-error", "Impossible de contacter le serveur.");
+  } finally {
+    setLoading("btn-register", false);
+  }
+}
