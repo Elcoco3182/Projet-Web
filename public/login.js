@@ -2,15 +2,26 @@
 // ── Login────
 const API_BASE = `${location.protocol}//${location.hostname}:3000`;
 
+//fonctions d'affichage d'erreur dans la page
+function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.hidden = false;
+}
+function clearErrors() {
+    document.getElementById("login-error").hidden = true;
+}
+
 async function VerifyUser(){
+
+    clearErrors();
+
     let username_id = document.getElementById("username");
     let password_id = document.getElementById("password");
 
-    // MODIFIÉ : .trim() pour supprimer les espaces accidentels
     const username = username_id.value.trim();
     const password = password_id.value;
 
-    // AJOUTÉ : validation avant d'envoyer la requête
     if (!username || !password) {
         alert("Veuillez remplir tous les champs.");
         return;
@@ -30,13 +41,12 @@ async function VerifyUser(){
         const data = await rep.json();
 
         if (rep.ok) {
-            alert("Connexion réussie !");
             window.location.href = "index.html";
         } else {
-            alert("Erreur : " + data.error);
+            showError("login-error", data.error);
         }
     } catch (error) {
         console.error("Erreur lors de la requête:", error);
-        alert("Impossible de contacter le serveur backend.");
+        showError("login-error", "Impossible de contacter le serveur.");
     }
 }
