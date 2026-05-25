@@ -1,7 +1,19 @@
 
-// ── Login────
 const API_BASE = `${location.protocol}//${location.hostname}:3000`;
 
+
+// ── Navigation entre les onglets ──────────────────────────────────────────────
+function showTab(tab) {
+  const isLogin = tab === "login";
+  document.getElementById("form-login").hidden    = !isLogin;
+  document.getElementById("form-register").hidden =  isLogin;
+  document.getElementById("tab-login").classList.toggle("active",  isLogin);
+  document.getElementById("tab-register").classList.toggle("active", !isLogin);
+  clearErrors();
+}
+
+
+// ── Gestion des erreurs ───────────
 //fonctions d'affichage d'erreur dans la page
 function showError(id, msg) {
     const el = document.getElementById(id);
@@ -10,8 +22,11 @@ function showError(id, msg) {
 }
 function clearErrors() {
     document.getElementById("login-error").hidden = true;
+    document.getElementById("register-error").hidden = true;
 }
 
+
+// ── État des boutons ────
 //gestion de l'état du bouton pendant la requête
 function setLoading(id, loading) {
     const btn = document.getElementById(id);
@@ -19,6 +34,7 @@ function setLoading(id, loading) {
     btn.textContent = loading ? "Chargement…" : "Login";
 }
 
+// ── Login────
 async function login(){
 
     clearErrors();
