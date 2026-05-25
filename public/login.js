@@ -12,7 +12,14 @@ function clearErrors() {
     document.getElementById("login-error").hidden = true;
 }
 
-async function VerifyUser(){
+//gestion de l'état du bouton pendant la requête
+function setLoading(id, loading) {
+    const btn = document.getElementById(id);
+    btn.disabled = loading;
+    btn.textContent = loading ? "Chargement…" : "Login";
+}
+
+async function login(){
 
     clearErrors();
 
@@ -29,6 +36,9 @@ async function VerifyUser(){
 
     const user_info = { username, password };
 
+    //désactive le bouton avant la requête
+    setLoading("login_button", true);
+
     try {
         // MODIFIÉ : API_BASE à la place de "http://localhost:3000"
         const rep = await fetch(`${API_BASE}/login`, {
@@ -43,10 +53,12 @@ async function VerifyUser(){
         if (rep.ok) {
             window.location.href = "index.html";
         } else {
-            showError("login-error", data.error);
+            showError("login-error", data.error ?? "Erreur de connexion.");
         }
-    } catch (error) {
-        console.error("Erreur lors de la requête:", error);
+    } catch{
         showError("login-error", "Impossible de contacter le serveur.");
+    } finally {
+        //réactive le bouton dans tous les cas (succès ou erreur)
+        setLoading("login_button", false);
     }
 }
