@@ -1,35 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title> Minimal page </title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
-        
-        <h1> Welcome </h1>
-        <ul>
-            <li> Username  </li>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polygarou</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
 
-        <div class="row_container">
-            <label for="username"></label> <input type="text" id="username">
+  <!-- Canvas plein écran -->
+  <canvas id="scene"></canvas>
+
+  <!-- Carte de login flottante -->
+  <main class="card-wrapper">
+    <div class="card">
+      <div class="card-shine"></div>
+
+      <header class="card-header">
+        <div class="moon-icon">☽</div>
+        <h1 class="title">Polygarou</h1>
+        <p class="subtitle">l'aventure des polypotes</p>
+        <div class="divider">
+          <span class="divider-line"></span>
+          <span class="divider-dot">✦</span>
+          <span class="divider-line"></span>
         </div>
-        
-        <li> Password  </li>
-        <div class="row_container">
-            <!-- MODIFIÉ : type="text" → type="password"
-                 Le mot de passe s'affichait en clair dans le navigateur.
-                 bcrypt peut aussi recevoir des caractères parasites selon le navigateur. -->
-            <label for="password"></label> <input type="password" id="password">
+      </header>
+
+      <!-- Onglets -->
+      <div class="tabs">
+        <button class="tab active" id="tab-login"    onclick="showTab('login')">Connexion</button>
+        <button class="tab"        id="tab-register" onclick="showTab('register')">Inscription</button>
+      </div>
+
+      <!-- ── Login ── -->
+      <section id="form-login" class="form">
+        <div class="field">
+          <label for="login-username">Nom d'utilisateur</label>
+          <div class="input-wrap">
+            <span class="input-icon">⚉</span>
+            <input type="text"     id="login-username" placeholder="VillageoisXXX" maxlength="30" autocomplete="username">
+          </div>
         </div>
-        </ul>
-
-        <div>
-            <button id="login_button" onclick="VerifyUser();"> Login </button>
-            <button id="register_button" onclick="Register();"> Register </button>
+        <div class="field">
+          <label for="login-password">Mot de passe</label>
+          <div class="input-wrap">
+            <span class="input-icon">⚷</span>
+            <input type="password" id="login-password" placeholder="••••••••" maxlength="128" autocomplete="current-password">
+          </div>
         </div>
+        <p id="login-error" class="error-msg" hidden role="alert"></p>
+        <button class="btn-submit" id="btn-login" onclick="login()">
+          <span class="btn-text">Entrer dans le batiment Polytech</span>
+          <span class="btn-glow"></span>
+        </button>
+      </section>
 
-        <script src="login.js"></script>
+      <!-- ── Register ── -->
+      <section id="form-register" class="form" hidden>
+        <div class="field">
+          <label for="reg-username">Choisir un nom</label>
+          <div class="input-wrap">
+            <span class="input-icon">⚉</span>
+            <input type="text"     id="reg-username" placeholder="3 à 30 caractères" maxlength="30" autocomplete="username">
+          </div>
+        </div>
+        <div class="field">
+          <label for="reg-password">Mot de passe</label>
+          <div class="input-wrap">
+            <span class="input-icon">⚷</span>
+            <input type="password" id="reg-password" placeholder="8 caractères minimum" maxlength="128" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="field">
+          <label for="reg-confirm">Confirmer</label>
+          <div class="input-wrap">
+            <span class="input-icon">⚷</span>
+            <input type="password" id="reg-confirm" placeholder="••••••••" maxlength="128" autocomplete="new-password">
+          </div>
+        </div>
+        <p id="register-error" class="error-msg" hidden role="alert"></p>
+        <button class="btn-submit" id="btn-register" onclick="register()">
+          <span class="btn-text">Rejoindre le batiment Polytech</span>
+          <span class="btn-glow"></span>
+        </button>
+      </section>
 
-    </body>
+    </div>
+  </main>
+
+  <script src="scene.js"></script>
+  <script src="login.js"></script>
+</body>
 </html>
+
