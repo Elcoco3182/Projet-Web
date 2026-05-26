@@ -32,8 +32,6 @@ test:
 .build-image:
   stage: build
   image: docker:27
-  services:
-    - docker:27-dind
   variables:
     DOCKER_HOST: unix:///var/run/docker.sock
   before_script:
