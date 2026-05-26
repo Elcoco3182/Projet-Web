@@ -1,5 +1,6 @@
 services:
   front:
+    image: ${CI_REGISTRY_IMAGE}/front:latest
     build:
       context: .
       dockerfile: ./docker/front/Dockerfile
@@ -17,6 +18,7 @@ services:
       - frontNetwork
 
   back:
+    image: ${CI_REGISTRY_IMAGE}/back:latest
     build:
       context: .
       dockerfile: ./docker/back/Dockerfile
@@ -47,6 +49,7 @@ services:
       - middleNetwork
 
   api:
+    image: ${CI_REGISTRY_IMAGE}/api:latest
     build:
       context: .
       dockerfile: ./docker/api/Dockerfile
@@ -72,6 +75,7 @@ services:
       - backNetwork
 
   db:
+    image: ${CI_REGISTRY_IMAGE}/db:latest
     build:
       context: .
       dockerfile: ./docker/db/Dockerfile
