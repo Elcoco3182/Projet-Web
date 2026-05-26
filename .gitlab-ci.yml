@@ -6,7 +6,7 @@ stages:
 
 variables:
   DENO_VERSION: "2.5.0"
-  IMAGE_BASE: $CI_REGISTRY_IMAGE
+  IMAGE_BASE: ${CI_REGISTRY_IMAGE}
 
 # ── Image Deno réutilisée par lint et test ─────────────────────────────────
 .deno:
@@ -35,7 +35,7 @@ test:
   variables:
     DOCKER_HOST: unix:///var/run/docker.sock
   before_script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
@@ -81,7 +81,7 @@ deploy:
   script:
     - ssh $VM_USER@$VM_HOST "
       cd ~/projet-web &&
-      docker login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD &&
+      docker login ${CI_REGISTRY} -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} &&
       docker compose pull &&
       docker compose up -d
       "
