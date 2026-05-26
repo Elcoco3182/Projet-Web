@@ -42,11 +42,17 @@ let viewportHeight = canvas.height;
 
 canvas.style.display = "none";
 
+let images = {};
+
+let pendingUsername = null;
+
 
 // Affiche que la connexion (ws) est en train de se faire
 const submitBtn = document.querySelector("#joueurTypeForm button");
-submitBtn.disabled = true;
-submitBtn.textContent = "Connexion...";
+if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Connexion...";
+}
 
 class Joueur {
     constructor(x, y) {
@@ -173,6 +179,7 @@ socket.onmessage = (event) => {
         case "playerId":
           localJoueur = new Joueur(data.startX, data.startY);
           localJoueur.id = data.playerId;
+          if (pendingUsername) localJoueur.username = pendingUsername;
           break;
         case "mapSize":
           mapWidth = data.width;
@@ -589,7 +596,8 @@ async function displayUsername() {
   }
   const data = await res.json();
 
-  localJoueur.username = data.username;
+  pendingUsername = data.username;
+  if (localJoueur) localJoueur.username = data.username;
 
   const label = document.createElement("div");
   label.style.position = "fixed";

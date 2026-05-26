@@ -549,7 +549,7 @@ function getCurrentDayTime() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = parseInt(Deno.env.get("API_PORT") ?? "3000");
-//const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "http://localhost:8080";
+//const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "https://localhost:8080";
 
 // Vérification: le secret JWT doit être défini explicitement
 const JWT_SECRET = Deno.env.get("JWT_SECRET");
