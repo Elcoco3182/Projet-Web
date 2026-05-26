@@ -145,6 +145,78 @@ const wolves = Array.from({ length: 4 }, (_, i) =>
   new Wolf(-(i * 300 + Math.random() * 120))
 );
 
+
+// ─── Villageois ───────────────────────────────────────────────────────────────
+class Villager {
+  constructor(startX) { this.particles = []; this.init(startX); }
+  init(startX) {
+    this.x      = startX ?? W + 60 + Math.random() * 280;
+    this.fy     = 0.79 + Math.random() * 0.04;
+    this.speed  = -(0.38 + Math.random() * 0.30);
+    this.scale  = 0.52 + Math.random() * 0.22;
+    this.phase  = Math.random() * Math.PI * 2;
+    this.pSpeed = 0.060 + Math.random() * 0.025;
+  }
+  update() {
+    this.x += this.speed; this.phase += this.pSpeed;
+    if (this.x < -120) this.init(W + 120);
+    if (Math.random() < 0.38) {
+      this.particles.push({
+        x:    this.x - (10 + Math.sin(this.phase)*2.5)*this.scale,
+        y:    this.fy*H - 54*this.scale,
+        vx:   (Math.random()-.5)*.52, vy:-(0.60+Math.random()*.55),
+        life: 1, decay: .033+Math.random()*.028, size: 2.0+Math.random()*2.5,
+      });
+    }
+    this.particles = this.particles
+      .map(p => ({...p,x:p.x+p.vx,y:p.y+p.vy,life:p.life-p.decay}))
+      .filter(p => p.life > 0);
+  }
+  drawParticles(c) {
+    for (const p of this.particles) {
+      c.beginPath(); c.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+      c.fillStyle = `rgba(255,${Math.floor(125*p.life)},8,${p.life*.8})`; c.fill();
+    }
+  }
+  draw(c) {
+    c.save();
+    c.translate(this.x, this.fy*H); c.scale(this.scale,this.scale); c.scale(-1,1);
+    const t=this.phase, leg=Math.sin(t)*11, arm=Math.sin(t+Math.PI)*5;
+    c.fillStyle='#0a0520'; c.strokeStyle='#0a0520'; c.lineCap='round';
+    // Tête
+    c.beginPath(); c.arc(0,-46,9,0,Math.PI*2); c.fill();
+    // Cape
+    c.beginPath(); c.moveTo(-11,-38);
+    c.bezierCurveTo(-15,-14,-13,0,-10,16); c.lineTo(10,16);
+    c.bezierCurveTo(13,0,15,-14,11,-38); c.closePath(); c.fill();
+    // Bras + bâton
+    c.lineWidth=3.5; c.beginPath(); c.moveTo(10,-28);
+    c.lineTo(13+arm*.3,-16); c.lineTo(11+arm*.5,-4); c.stroke();
+    c.lineWidth=3; c.beginPath(); c.moveTo(11+arm*.5,-4);
+    c.lineTo(13+arm*.5,-32); c.stroke();
+    // Flamme
+    const fx=13+arm*.5, fl=Math.sin(t*7)*.28;
+    c.beginPath(); c.ellipse(fx,-41,5+fl*2,9+fl,0,0,Math.PI*2);
+    c.fillStyle=`rgba(255,115,15,${.78+fl})`; c.fill();
+    c.beginPath(); c.ellipse(fx,-43,3,6,0,0,Math.PI*2);
+    c.fillStyle=`rgba(255,215,65,${.88+fl*.5})`; c.fill();
+    // Halo flambeau
+    c.save();
+    const gl=c.createRadialGradient(fx,-40,0,fx,-40,30);
+    gl.addColorStop(0,'rgba(255,145,35,0.22)'); gl.addColorStop(1,'transparent');
+    c.fillStyle=gl; c.beginPath(); c.arc(fx,-40,30,0,Math.PI*2); c.fill();
+    c.restore();
+    // Jambes
+    c.strokeStyle='#0a0520'; c.lineWidth=5;
+    c.beginPath(); c.moveTo(-3,13); c.lineTo(-5+leg,23); c.lineTo(-4+leg,30); c.stroke();
+    c.beginPath(); c.moveTo( 3,13); c.lineTo( 5-leg,23); c.lineTo( 4-leg,30); c.stroke();
+    c.restore();
+  }
+}
+const villagers = Array.from({ length: 6 }, (_,i) =>
+  new Villager(W + 80 + i*100 + Math.random()*40)
+);
+
 let t = 0;
 function render() {
   requestAnimationFrame(render);
@@ -153,6 +225,8 @@ function render() {
   drawBackground(); //image plein écran
   drawStars(t);
   for (const bat of bats) drawBat(bat); // chauve-souris
-  for (const w of wolves) { w.update(); w.draw(ctx); }// 5 — Loups
+  for (const v of villagers) v.drawParticles(ctx);             // 4 — Particules feu
+  for (const w of wolves) { w.update(); w.draw(ctx); }//Loups
+  for (const v of villagers) { v.update(); v.draw(ctx); } // Villageois
 }
 render();
