@@ -5,6 +5,8 @@ services:
       dockerfile: ./docker/front/Dockerfile
     ports:
       - "8080:8080"
+    volumes:
+      - ./public:/app/public
     env_file:
       - .env
     depends_on:
@@ -20,10 +22,13 @@ services:
       dockerfile: ./docker/back/Dockerfile
     ports:
       - "3000:3000"
+    volumes:
+      - ./server.ts:/app/server.ts
     env_file:
       - .env
     environment:
       - DENO_DIR=/tmp/deno-cache
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
     depends_on:
       api:
         condition: service_healthy

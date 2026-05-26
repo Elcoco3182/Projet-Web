@@ -1,4 +1,4 @@
-import { Application, Context, Router } from "@oak/oak";
+import { Application, Context, Router, send } from "@oak/oak";
 //import { Application, Context, Router } from "https://deno.land/x/oak@v17.1.6/mod.ts";
 import { oakCors } from "@deno.land/x/cors";
 import { create, verify } from "@zaubrik/djwt";
@@ -19,6 +19,7 @@ async function fetchWithRetry(
     try {
       const res = await fetch(url, options);
       if (res.ok) return res;
+      console.log(`Réponse non-ok: ${res.status} pour ${url}`); // ← ici
     } catch {
       console.log(`API non disponible, retry ${i + 1}/${retries}...`);
       await new Promise((r) => setTimeout(r, delay));
@@ -26,6 +27,23 @@ async function fetchWithRetry(
   }
   throw new Error(`API inaccessible après ${retries} tentatives`);
 }
+
+// ==================== Config chlag ======================
+
+// a = assassin p = petitefille i = innocent
+const roleSelonNbJoueur = [
+  "",
+  "",
+  "",
+  "api",
+  "apii",
+  "apiii",
+  "aapiii",
+  "aappiii",
+  "aappiiii",
+  "aaapppiii",
+  "aaapppiiii",
+];
 
 // ==================== CONFIG SERVEUR ====================
 
@@ -41,10 +59,17 @@ let isAfternoon = true;
 let isNight = false;
 let isMidnight = false;
 
-const mapHeight = 700;
-const mapWidth = 1200;
+let gameState = "noConnected";
+let nbReady = 0;
 
-const obstacles = generateRandomObstacles();
+const mapHeight = 1550;
+const mapWidth = 4000;
+
+import rectangles from "./public/assets/map/polytech.json" with {
+  type: "json",
+};
+
+const obstacles = setObstacle();
 
 setInterval(() => {
   switchDayTime();
@@ -53,17 +78,18 @@ setInterval(() => {
 // ==================== CRÉATION DE LA PARTIE ====================
 
 let currentPartyId: number | null = null;
-let partyStarted = false;
 
-try {
-  const partieRes = await fetchWithRetry(`${API_URL}/parties`, {
-    method: "POST",
-  });
-  const partie = await partieRes.json();
-  currentPartyId = partie.id;
-  console.log(`Partie créée : id=${currentPartyId}`);
-} catch (err) {
-  console.error("Impossible de créer la partie :", err);
+async function fecthPartiApi() {
+  try {
+    const partieRes = await fetchWithRetry(`${API_URL}/parties`, {
+      method: "POST",
+    });
+    const partie = await partieRes.json();
+    currentPartyId = partie.id;
+    console.log(`Partie créée : id=${currentPartyId}`);
+  } catch (err) {
+    console.error("Impossible de créer la partie :", err);
+  }
 }
 
 // ==================== HEALTHCHECK ====================
@@ -75,31 +101,86 @@ router.get("/health", (ctx) => {
 
 // ==================== WEBSOCKET ====================
 
-router.get("/ws", (ctx) => {
+router.get("/ws", async (ctx) => {
   if (!ctx.isUpgradable) {
     ctx.throw(501);
   }
 
+  // Vérifier le token et récupérer le username
+  const token = getTokenFromCookie(ctx);
+  if (!token) {
+    ctx.throw(401);
+    return;
+  }
+  let username = "Inconnu";
+  try {
+    const payload = await verify(token, secretKey);
+    username = payload.username as string;
+  } catch {
+    ctx.throw(401);
+    return;
+  }
+
   const ws = ctx.upgrade();
   const playerId = createPlayerId();
-  sockets.set(playerId, ws);
+  let rejected = false;
+
+  ws.onclose = async () => {
+    if (rejected) return; // ← ignorer si rejeté
+
+    players.delete(playerId);
+    sockets.delete(playerId);
+    sendUpdatelobby();
+
+    if (players.size === 0 && gameState === "playing" && currentPartyId) {
+      try {
+        await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, {
+          method: "PATCH",
+        });
+        console.log(`Partie ${currentPartyId} terminée`);
+      } catch (err) {
+        console.error("Erreur fermeture partie :", err);
+      }
+    }
+
+    if (players.size === 0) {
+      gameState = "noConnected";
+      currentPartyId = null;
+    }
+  };
+
+  if (gameState === "noConnected") {
+    gameState = "lobby";
+  }
 
   const spawnPoint = getRandomSpawnPoint();
-  players.set(playerId, {
-    id: playerId,
-    x: spawnPoint.x,
-    y: spawnPoint.y,
-    height: 40,
-    width: 20,
-    kills: 0,
-    active: false,
-  });
 
-  ws.onopen = async () => {
+  if (gameState === "noConnected" || gameState === "lobby") {
+    sockets.set(playerId, ws);
+
+    players.set(playerId, {
+      id: playerId,
+      x: spawnPoint.x,
+      y: spawnPoint.y,
+      height: 40,
+      width: 20,
+      kills: 0,
+      active: false,
+      ready: false,
+      username: username, // ← ajouter ça
+    });
+
+    sendUpdatelobby();
+  }
+
+  ws.onopen = () => {
     try {
-      const rolesRes = await fetchWithRetry(`${API_URL}/roles`);
-      const roles = await rolesRes.json();
-
+      if (gameState === "playing") {
+        rejected = true;
+        ws.send(JSON.stringify({ type: "rejected" }));
+        ws.close(1008, "Partie en cours");
+        return;
+      }
       ws.send(
         JSON.stringify({
           type: "playerId",
@@ -112,7 +193,6 @@ router.get("/ws", (ctx) => {
         JSON.stringify({ type: "mapSize", height: mapHeight, width: mapWidth }),
       );
       ws.send(JSON.stringify({ type: getCurrentDayTime() }));
-      ws.send(JSON.stringify({ type: "roles", roles }));
     } catch (err) {
       console.error("Erreur onopen :", err);
     }
@@ -127,56 +207,24 @@ router.get("/ws", (ctx) => {
           break;
         case "disconnect":
           players.delete(playerId);
-          break;
-        case "activatePlayer": {
-          activatePlayer(playerId, data.joueurType);
-          partyStarted = true;
-
-          const rolesRes = await fetchWithRetry(`${API_URL}/roles`);
-          const roles: { id: number; name: string }[] = await rolesRes.json();
-          const role = roles.find((r) => r.name === data.joueurType);
-
-          if (role && currentPartyId) {
-            await fetchWithRetry(`${API_URL}/historiques`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                user_id: 1, // ← à remplacer quand tu auras un système de login
-                party_id: currentPartyId,
-                role_id: role.id,
-              }),
-            });
-            console.log(
-              `Joueur ${playerId} enregistré avec le rôle ${data.joueurType}`,
-            );
+          if (gameState === "lobby") {
+            sendUpdatelobby();
           }
           break;
-        }
-
         case "kill":
           await tryKill(playerId, data.targetId);
+          break;
+        case "setReady":
+          setReadyPlayer(playerId);
+          sendUpdatelobby();
+          if (checkAllReady()) {
+            gameState = "playing";
+            startGame();
+          }
           break;
       }
     } catch (err) {
       console.error("Erreur onmessage :", err);
-    }
-  };
-
-  ws.onclose = async () => {
-    players.delete(playerId);
-    sockets.delete(playerId);
-
-    // Terminer la partie seulement si elle a commencé et qu'il n'y a plus personne
-    if (players.size === 0 && partyStarted && currentPartyId) {
-      try {
-        await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, {
-          method: "PATCH",
-        });
-        console.log(`Partie ${currentPartyId} terminée`);
-        partyStarted = false;
-      } catch (err) {
-        console.error("Erreur fermeture partie :", err);
-      }
     }
   };
 
@@ -200,24 +248,148 @@ router.get("/ws", (ctx) => {
 
 // ==================== FONCTIONS JEU ====================
 
+function getRandomInt(max: number) {
+  return Math.floor(Math.random() * max);
+}
+
+async function startGame() {
+  await fecthPartiApi();
+  await giveRoleAll();
+}
+
+async function giveRoleAll() {
+  const tabInt = [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+  ];
+  const tabPlayer: string[] = [];
+  let i = 0;
+
+  players.forEach((player) => {
+    tabPlayer[i] = player.id;
+    i += 1;
+
+    const indexrand1 = getRandomInt(players.size);
+    const indexrand2 = getRandomInt(players.size);
+    let buffer = 0;
+
+    buffer = tabInt[indexrand1];
+    tabInt[indexrand1] = tabInt[indexrand2];
+    tabInt[indexrand2] = buffer;
+  });
+
+  i = 0;
+  const rolePossible = roleSelonNbJoueur[players.size];
+
+  for (const playerId of tabPlayer) {
+    // ton code
+    // il  faut ici choisir un rôle aléatoirement
+    let role = rolePossible.charAt(tabInt[i]);
+    let role_id = 0;
+    switch (role) {
+      case "a":
+        role = "assassin";
+        role_id = 2;
+        break;
+      case "p":
+        role = "petitefille";
+        role_id = 3;
+        break;
+      case "i":
+        role = "innocent";
+        role_id = 1;
+        break;
+    }
+
+    i++;
+
+    console.log("Envoi historique:", {
+      user_id: 1,
+      party_id: currentPartyId,
+      role_id: role_id,
+    });
+
+    await fetchWithRetry(`${API_URL}/historiques`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: 1, // ← à remplacer quand tu auras un système de login
+        party_id: currentPartyId,
+        role_id: role_id,
+      }),
+    });
+    activatePlayer(playerId, role); // passe aussi le role
+    const playerSocket = sockets.get(playerId);
+    console.log(`Joueur role ${role}`);
+    if (playerSocket?.readyState === WebSocket.OPEN) {
+      playerSocket.send(JSON.stringify({ type: "gameStart", role }));
+    }
+    console.log(`Joueur ${playerId} enregistré avec le rôle ${role}`);
+  }
+}
+
 function createPlayerId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
-function updatePlayer(playerId: string, data: { x: number; y: number }) {
+function updatePlayer(
+  playerId: string,
+  data: { x: number; y: number; d: string },
+) {
   const player = players.get(playerId);
   if (player) {
     player.x = data.x;
     player.y = data.y;
+    player.d = data.d;
   }
 }
 
-function activatePlayer(playerId: string, joueurType: string) {
+function activatePlayer(playerId: string, role: string) {
   const player = players.get(playerId);
   if (player) {
     player.active = true;
-    player.type = joueurType;
+    player.type = role;
   }
+}
+
+function setReadyPlayer(playerId: string) {
+  const player = players.get(playerId);
+  if (player) {
+    player.ready = true;
+  }
+}
+
+function miseAjourReady() {
+  nbReady = 0;
+  players.forEach((player) => {
+    if (player.ready) {
+      nbReady += 1;
+    }
+  });
+}
+
+function checkAllReady() {
+  miseAjourReady();
+  return players.size >= 3 && nbReady == players.size;
 }
 
 function sendKilled(playerId: string) {
@@ -229,52 +401,68 @@ function sendKilled(playerId: string) {
   });
 }
 
+function sendUpdatelobby() {
+  miseAjourReady();
+  const data = JSON.stringify({
+    type: "lobbyUpdate",
+    nbReady,
+    total: players.size,
+  });
+  sockets.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(data);
+    }
+  });
+}
+
 function switchDayTime() {
-  if (isMorning) {
-    isMorning = false;
-    isNoon = true;
-    const data = JSON.stringify({ type: "isNoon" });
-    sockets.forEach((client) => {
-      if (client.readyState === 1) {
-        client.send(data);
-      }
-    });
-  } else if (isNoon) {
-    isNoon = false;
-    isAfternoon = true;
-    const data = JSON.stringify({ type: "isAfternoon" });
-    sockets.forEach((client) => {
-      if (client.readyState === 1) {
-        client.send(data);
-      }
-    });
-  } else if (isAfternoon) {
-    isAfternoon = false;
-    isNight = true;
-    const data = JSON.stringify({ type: "isNight" });
-    sockets.forEach((client) => {
-      if (client.readyState === 1) {
-        client.send(data);
-      }
-    });
-  } else if (isNight) {
-    isNight = false;
-    isMidnight = true;
-    const data = JSON.stringify({ type: "isMidnight" });
-    sockets.forEach((client) => {
-      if (client.readyState === 1) {
-        client.send(data);
-      }
-    });
-  } else if (isMidnight) {
-    isMidnight = false;
-    isMorning = true;
-    const data = JSON.stringify({ type: "isMorning" });
-    sockets.forEach((client) => {
-      if (client.readyState === 1) {
-        client.send(data);
-      }
-    });
+  if (gameState == "playing") {
+    if (isMorning) {
+      isMorning = false;
+      isNoon = true;
+      const data = JSON.stringify({ type: "isNoon" });
+      sockets.forEach((client) => {
+        if (client.readyState === 1) {
+          client.send(data);
+        }
+      });
+    } else if (isNoon) {
+      isNoon = false;
+      isAfternoon = true;
+      const data = JSON.stringify({ type: "isAfternoon" });
+      sockets.forEach((client) => {
+        if (client.readyState === 1) {
+          client.send(data);
+        }
+      });
+    } else if (isAfternoon) {
+      isAfternoon = false;
+      isNight = true;
+      const data = JSON.stringify({ type: "isNight" });
+      sockets.forEach((client) => {
+        if (client.readyState === 1) {
+          client.send(data);
+        }
+      });
+    } else if (isNight) {
+      isNight = false;
+      isMidnight = true;
+      const data = JSON.stringify({ type: "isMidnight" });
+      sockets.forEach((client) => {
+        if (client.readyState === 1) {
+          client.send(data);
+        }
+      });
+    } else if (isMidnight) {
+      isMidnight = false;
+      isMorning = true;
+      const data = JSON.stringify({ type: "isMorning" });
+      sockets.forEach((client) => {
+        if (client.readyState === 1) {
+          client.send(data);
+        }
+      });
+    }
   }
 }
 
@@ -296,18 +484,18 @@ async function tryKill(attackerId: string, targetId: string) {
   players.delete(targetId);
 }
 
-function generateRandomObstacles() {
-  const obstacles = [];
-  const obstacleDensity = 0.00001;
-  const numObstacles = Math.floor(obstacleDensity * mapWidth * mapHeight);
+function setObstacle() {
+  const obstacles: { x: number; y: number; width: number; height: number }[] =
+    [];
 
-  for (let i = 0; i < numObstacles; i++) {
-    const x = Math.random() * (mapWidth - 10);
-    const y = Math.random() * (mapHeight - 10);
-    const width = 50 + Math.random() * 100;
-    const height = 50 + Math.random() * 100;
-    obstacles.push({ x, y, width, height });
-  }
+  rectangles.forEach((rectangle) =>
+    obstacles.push({
+      x: rectangle[0],
+      y: rectangle[1],
+      width: rectangle[2],
+      height: rectangle[3],
+    })
+  );
 
   return obstacles;
 }
@@ -361,7 +549,7 @@ function getCurrentDayTime() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = parseInt(Deno.env.get("API_PORT") ?? "3000");
-const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "https://localhost:8080";
+//const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "http://localhost:8080";
 
 // Vérification: le secret JWT doit être défini explicitement
 const JWT_SECRET = Deno.env.get("JWT_SECRET");
@@ -441,6 +629,21 @@ function getTokenFromCookie(ctx: Context): string | null {
     row.startsWith("auth_token=")
   );
   return match ? match.split("=")[1] : null;
+}
+
+async function requireAuth(ctx: Context, next: () => Promise<unknown>) {
+  const token = getTokenFromCookie(ctx);
+  if (!token) {
+    ctx.response.redirect("/login.html");
+    return;
+  }
+  try {
+    await verify(token, secretKey);
+    await next();
+  } catch {
+    clearAuthCookie(ctx);
+    ctx.response.redirect("/login.html");
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -644,16 +847,42 @@ router.get("/verify", async (ctx) => {
   }
 });
 
+router.get("/login.html", async (ctx) => {
+  await send(ctx, "login.html", { root: "./public" });
+});
+router.get("/style.css", async (ctx) => {
+  await send(ctx, "style.css", { root: "./public" });
+});
+router.get("/login.js", async (ctx) => {
+  await send(ctx, "login.js", { root: "./public" });
+});
+
+// Route protégée pour index.html
+router.get("/", requireAuth, async (ctx) => {
+  await send(ctx, "index.html", { root: "./public" });
+});
+router.get("/index.html", requireAuth, async (ctx) => {
+  await send(ctx, "index.html", { root: "./public" });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Application
 // ─────────────────────────────────────────────────────────────────────────────
 
-// CORS : autoriser uniquement le serveur front à appeler l'API
+// ==================== CORS ====================
+
+const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",");
+
 app.use(
   oakCors({
-    origin: FRONT_ORIGIN,
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
+    origin: (requestOrigin) => {
+      if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+        return requestOrigin || "*";
+      }
+      return false;
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   }),
 );
