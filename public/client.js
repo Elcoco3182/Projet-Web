@@ -1,5 +1,4 @@
-
-const socket = new WebSocket(`ws://${location.hostname}:3000/ws`);
+const socket = new WebSocket(`wss://${location.hostname}:3000/ws`);
 let canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -43,7 +42,11 @@ let viewportHeight = canvas.height;
 
 canvas.style.display = "none";
 
-const images = {};
+
+// Affiche que la connexion (ws) est en train de se faire
+const submitBtn = document.querySelector("#joueurTypeForm button");
+submitBtn.disabled = true;
+submitBtn.textContent = "Connexion...";
 
 class Joueur {
     constructor(x, y) {
@@ -159,7 +162,7 @@ socket.onmessage = (event) => {
           obstacles = data.obstacles;
           break;
         case "lobbyUpdate":
-          document.getElementById("lobbyCount").innerText = 
+          document.getElementById("lobbyCount").innerText =
             `${data.nbReady}/${data.total} joueurs prêts (min. 3)`;
           break;
         case "killed":
@@ -219,10 +222,10 @@ socket.onopen = () => {
 
 function update() {
     let direction;
-    if (keys.ArrowDown == true) direction = "down";
-    if (keys.ArrowUp == true) direction = "up";
-    if (keys.ArrowRight == true) direction = "right";
-    if (keys.ArrowLeft == true) direction = "left";
+    if (keys.ArrowDown === true) direction = "down";
+    if (keys.ArrowUp === true) direction = "up";
+    if (keys.ArrowRight === true) direction = "right";
+    if (keys.ArrowLeft === true) direction = "left";
     let data = {
         type: "update",
         x: localJoueur.x,
@@ -288,15 +291,15 @@ function draw() {
 
   if (isNight || isMidnight) {
     applyNightMask(ctxNight, screenX, screenY, 150 * cameraZoom);
-    
+
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    
+
     // Clip sur la zone de jeu uniquement
     ctx.beginPath();
     ctx.rect(renderOffsetX, renderOffsetY, WORLD_VIEW_WIDTH * cameraZoom, WORLD_VIEW_HEIGHT * cameraZoom);
     ctx.clip();
-    
+
     ctx.drawImage(canvasNight, 0, 0);
     ctx.restore();
   }
@@ -342,7 +345,7 @@ function drawJoueurImage(x, y, player) {
           break;
       }
     }
-    
+
 
     ctx.save();
 
@@ -385,14 +388,14 @@ function drawMap() {
 }
 
 function misAjourSourceY() {
-    if (keys.ArrowUp == true) sy = 192;
-    if (keys.ArrowLeft == true) sy = 64;
-    if (keys.ArrowRight == true) sy = 128;
-    if (keys.ArrowDown == true) sy = 0;
+    if (keys.ArrowUp === true) sy = 192;
+    if (keys.ArrowLeft === true) sy = 64;
+    if (keys.ArrowRight === true) sy = 128;
+    if (keys.ArrowDown === true) sy = 0;
 }
 
 function misAjourAnimationTime() {
-  if (keys.ArrowDown == true || keys.ArrowRight == true || keys.ArrowLeft == true || keys.ArrowUp == true) {
+  if (keys.ArrowDown === true || keys.ArrowRight === true || keys.ArrowLeft === true || keys.ArrowUp === true) {
     animationTime += 1;
     if (animationTime > 4) {
       animationTime = 1;
@@ -404,10 +407,10 @@ function misAjourAnimationTime() {
 }
 
 function returnSourceX() {
-  if (animationTime == 1) return 0;
-  if (animationTime == 2) return 64;
-  if (animationTime == 3) return 128;
-  if (animationTime == 4) return 192;
+  if (animationTime === 1) return 0;
+  if (animationTime === 2) return 64;
+  if (animationTime === 3) return 128;
+  if (animationTime === 4) return 192;
 }
 
 function drawObstacle(x, y, width, height) {
@@ -577,7 +580,7 @@ function updateZoom() {
 
 // Affiche le nom du joueur connecté en haut à gauche
 async function displayUsername() {
-  const res = await fetch(`http://${location.hostname}:3000/verify`, {
+  const res = await fetch(`https://${location.hostname}:3000/verify`, {
     credentials: "include"
   });
   if (!res.ok) {

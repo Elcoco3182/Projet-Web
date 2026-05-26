@@ -10,4 +10,4 @@ EXPOSE 8080
 
 USER deno
 
-CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read=./public,./deno.json", "src/scripts/front.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "src/scripts/front.ts"]

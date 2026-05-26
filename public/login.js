@@ -55,7 +55,7 @@ async function login(){
     //désactive le bouton avant la requête
     setLoading("btn-login", true);
 
-    const BACK_URL = `http://${window.location.hostname}:3000`;
+    //const BACK_URL = `https://${window.location.hostname}:3000`;
 
     try {
         // MODIFIÉ : API_BASE à la place de "http://localhost:3000"
