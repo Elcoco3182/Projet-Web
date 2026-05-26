@@ -256,7 +256,7 @@ function drawMist(t) {
 }
 
 
-
+//la boucle principale
 let t = 0;
 function render() {
   requestAnimationFrame(render);
@@ -273,3 +273,24 @@ function render() {
 
 }
 render();
+
+
+// ─── Effet 3D carte ───
+const card  = document.querySelector('.card');
+const shine = document.querySelector('.card-shine');
+document.addEventListener('mousemove', (e) => {
+  const rect = card.getBoundingClientRect();
+  const dx   = (e.clientX - rect.left - rect.width/2)  / (window.innerWidth  * .45);
+  const dy   = (e.clientY - rect.top  - rect.height/2) / (window.innerHeight * .45);
+  const rx   = Math.max(-12, Math.min(12, -dy * 11));
+  const ry   = Math.max(-12, Math.min(12,  dx * 11));
+  card.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+  const px = ((e.clientX-rect.left)/rect.width*100).toFixed(1);
+  const py = ((e.clientY-rect.top)/rect.height*100).toFixed(1);
+  shine.style.background =
+    `radial-gradient(circle at ${px}% ${py}%, rgba(255,255,255,0.06) 0%, transparent 52%)`;
+});
+document.addEventListener('mouseleave', () => {
+  card.style.transform = 'rotateX(0deg) rotateY(0deg)';
+  shine.style.background = 'none';
+});
