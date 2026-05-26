@@ -217,6 +217,46 @@ const villagers = Array.from({ length: 6 }, (_,i) =>
   new Villager(W + 80 + i*100 + Math.random()*40)
 );
 
+// ─── Lucioles ─────────────────────────────────────────────────────────────────
+const fireflies = Array.from({ length: 28 }, () => ({
+  x:Math.random(), fy:.55+Math.random()*.38,
+  vx:(Math.random()-.5)*.0002, vy:(Math.random()-.5)*.00014,
+  phase:Math.random()*Math.PI*2, speed:.022+Math.random()*.038, r:1.2+Math.random()*1.2,
+}));
+
+function drawFirefly(ff) {
+  ff.phase += ff.speed*.01;
+  ff.x = ((ff.x+ff.vx+Math.sin(ff.phase)*.0003)+1)%1;
+  ff.fy += ff.vy+Math.cos(ff.phase*.7)*.0001;
+  ff.fy = Math.max(.52,Math.min(.92,ff.fy));
+  const blink = Math.abs(Math.sin(ff.phase*1.7));
+  if (blink < .22) return;
+  const x=ff.x*W, y=ff.fy*H;
+  const g=ctx.createRadialGradient(x,y,0,x,y,ff.r*5);
+  g.addColorStop(0,`rgba(130,255,80,${blink*.85})`);
+  g.addColorStop(.4,`rgba(60,195,35,${blink*.32})`);
+  g.addColorStop(1,'transparent');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,ff.r*5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x,y,ff.r,0,Math.PI*2);
+  ctx.fillStyle=`rgba(195,255,130,${blink})`; ctx.fill();
+}
+
+// ─── Brume légère au sol ──────────────────────────────────────────────────────
+function drawMist(t) {
+  for (let i = 0; i < 2; i++) {
+    const drift = Math.sin(t*.00016 + i*1.5)*W*.05;
+    const gr = ctx.createRadialGradient(W*.5+drift, H*.92, 0, W*.5+drift, H*.92, W*(.5-i*.06));
+    gr.addColorStop(0, `rgba(80,45,140,${[.09,.06][i]})`);
+    gr.addColorStop(1, 'transparent');
+    ctx.fillStyle = gr;
+    ctx.beginPath();
+    ctx.ellipse(W*.5+drift, H*(.93+i*.02), W*(.60-i*.07), H*.055, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+
+
 let t = 0;
 function render() {
   requestAnimationFrame(render);
@@ -225,8 +265,11 @@ function render() {
   drawBackground(); //image plein écran
   drawStars(t);
   for (const bat of bats) drawBat(bat); // chauve-souris
-  for (const v of villagers) v.drawParticles(ctx);             // 4 — Particules feu
+  for (const v of villagers) v.drawParticles(ctx); //Particules feu
   for (const w of wolves) { w.update(); w.draw(ctx); }//Loups
   for (const v of villagers) { v.update(); v.draw(ctx); } // Villageois
+  drawMist(t);// 7 — Brume
+  for (const ff of fireflies) drawFirefly(ff);// 8 — Lucioles
+
 }
 render();
