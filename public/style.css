@@ -1,6 +1,13 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
 canvas {
     display: block;
     margin: 0 auto;
+    pointer-events: none;
 }
 
 .stats-bar {
@@ -78,4 +85,77 @@ button {
 a {
     color: #4CAF50;
     text-decoration: none;
+}
+
+#killButton {
+    position: fixed;
+
+    bottom: 40px;
+    right: 40px;
+
+    width: 80px;
+    height: 80px;
+
+    border-radius: 50%;
+
+    border: none;
+
+    font-size: 32px;
+
+    background: rgba(255, 0, 0, 0.35);
+
+    color: white;
+
+    display: none;
+
+    pointer-events: auto;
+
+    z-index: 1000;
+}
+
+#joystickContainer {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+
+    width: 120px;
+    height: 120px;
+
+    border-radius: 50%;
+    background: rgba(145, 145, 145, 0.15);
+
+    backdrop-filter: blur(4px);
+
+    display: none;
+
+    pointer-events: auto;
+
+    z-index: 1000;
+
+    touch-action: none;
+}
+
+#joystick {
+    position: absolute;
+
+    width: 50px;
+    height: 50px;
+
+    left: 50%;
+    top: 50%;
+
+    transform: translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    background: rgba(196, 196, 196, 0.45);
+
+    border: 2px solid rgba(97, 97, 97, 0.7);
+}
+
+@media (pointer: coarse) {
+  /* s'affiche seulement si l'écran est tactile */
+  #joystickContainer {
+    display: block;
+  }
 }

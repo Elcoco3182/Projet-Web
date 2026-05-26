@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Multiplayer NOT Tank Game</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -17,18 +17,18 @@
       <img src="/assets/images/Lapipizza2.png" width="480" height="320" alt="quoi?"/>
 
       <p>Use the arrow keys to move your NON tank.</p>
-      <form id="joueurTypeForm">
-        <label for="joueurType">Player type</label>
-        <select id="joueurType">
-          <!-- Envoyé par ws depuis client.js et la db roles-->
-        </select>
-        <button type="submit">Start Game</button>
-      </form>
+      <div class ="stats-bar" id ="lobbyCount"></div>
+      <button onclick="sendReady()">Ready ?</button>
     </div>
   </div>
   <div class ="stats-bar" id ="dayTime">
   </div>
   <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <div id="joystickContainer">
+    <div id="joystick"></div>
+  </div>
+  <button id="killButton" style="display:none">⚔️</button>
 
   <script src="client.js"></script>
 </body>
