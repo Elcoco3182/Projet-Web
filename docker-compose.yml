@@ -26,6 +26,7 @@ services:
       - "3000:3000"
     volumes:
       - ./server.ts:/app/server.ts
+      - ./certs:/app/certs:ro
     env_file:
       - .env
     environment:
