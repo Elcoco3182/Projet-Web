@@ -39,8 +39,8 @@ async function login(){
 
     clearErrors();
 
-    let username_id = document.getElementById("username");
-    let password_id = document.getElementById("password");
+    let username_id = document.getElementById("login-username");
+    let password_id = document.getElementById("login-password");
 
     const username = username_id.value.trim();
     const password = password_id.value;
@@ -53,7 +53,7 @@ async function login(){
     const user_info = { username, password };
 
     //désactive le bouton avant la requête
-    setLoading("login_button", true);
+    setLoading("btn-login", true);
 
     const BACK_URL = `http://${window.location.hostname}:3000`;
 
