@@ -1,0 +1,16 @@
+repos:
+  - repo: local
+    hooks:
+      - id: deno-fmt
+        name: Deno format check
+        language: system
+        entry: deno fmt --check
+        pass_filenames: false
+        types: [file]
+
+      - id: deno-lint
+        name: Deno lint
+        language: system
+        entry: deno lint
+        pass_filenames: false
+        types: [file]

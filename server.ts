@@ -1,26 +1,28 @@
-import { Application, Router, send } from "jsr:@oak/oak";
+import { Application, Context, Router, send } from "@oak/oak";
 //import { Application, Context, Router } from "https://deno.land/x/oak@v17.1.6/mod.ts";
-import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
-import { create, verify } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
-import bcrypt from "npm:bcryptjs@2.4.3";
+import { oakCors } from "@deno.land/x/cors";
+import { create, verify } from "@zaubrik/djwt";
+import bcrypt from "@bcryptjs";
 //import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
-
-
 
 // ==================== CONFIG DB ====================
 
 const API_URL = Deno.env.get("API_URL") ?? "http://api:8000";
 
-
-async function fetchWithRetry(url: string, options?: RequestInit, retries = 5, delay = 2000): Promise<Response> {
+async function fetchWithRetry(
+  url: string,
+  options?: RequestInit,
+  retries = 5,
+  delay = 2000,
+): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
       const res = await fetch(url, options);
       if (res.ok) return res;
-      console.log(`Réponse non-ok: ${res.status} pour ${url}`);  // ← ici
+      console.log(`Réponse non-ok: ${res.status} pour ${url}`); // ← ici
     } catch {
       console.log(`API non disponible, retry ${i + 1}/${retries}...`);
-      await new Promise(r => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw new Error(`API inaccessible après ${retries} tentatives`);
@@ -29,7 +31,19 @@ async function fetchWithRetry(url: string, options?: RequestInit, retries = 5, d
 // ==================== Config chlag ======================
 
 // a = assassin p = petitefille i = innocent
-const roleSelonNbJoueur = ["","","","api","apii","apiii","aapiii","aappiii","aappiiii","aaapppiii","aaapppiiii"];
+const roleSelonNbJoueur = [
+  "",
+  "",
+  "",
+  "api",
+  "apii",
+  "apiii",
+  "aapiii",
+  "aappiii",
+  "aappiiii",
+  "aaapppiii",
+  "aaapppiiii",
+];
 
 // ==================== CONFIG SERVEUR ====================
 
@@ -37,7 +51,7 @@ const router = new Router();
 const app = new Application();
 
 const sockets = new Map();
-let players = new Map();
+const players = new Map();
 // des booleans pour savoir à quel moment du cycle jour nuit on est
 let isMorning = false;
 let isNoon = false;
@@ -51,15 +65,15 @@ let nbReady = 0;
 const mapHeight = 1550;
 const mapWidth = 4000;
 
-import rectangles from "./public/assets/map/polytech.json" with { type: "json" };
+import rectangles from "./public/assets/map/polytech.json" with {
+  type: "json",
+};
 
-let obstacles = setObstacle(); 
+const obstacles = setObstacle();
 
 setInterval(() => {
-    switchDayTime();
+  switchDayTime();
 }, 4_000); // on switch de phase toute les minutes pour l(instant toute les 1à sec pour des test)
-
-console.log("Server listening on port 8080");
 
 // ==================== CRÉATION DE LA PARTIE ====================
 
@@ -67,7 +81,9 @@ let currentPartyId: number | null = null;
 
 async function fecthPartiApi() {
   try {
-    const partieRes = await fetchWithRetry(`${API_URL}/parties`, { method: "POST" });
+    const partieRes = await fetchWithRetry(`${API_URL}/parties`, {
+      method: "POST",
+    });
     const partie = await partieRes.json();
     currentPartyId = partie.id;
     console.log(`Partie créée : id=${currentPartyId}`);
@@ -76,7 +92,6 @@ async function fecthPartiApi() {
   }
 }
 
-
 // ==================== HEALTHCHECK ====================
 
 router.get("/health", (ctx) => {
@@ -84,11 +99,9 @@ router.get("/health", (ctx) => {
   ctx.response.body = "ok";
 });
 
-
 // ==================== WEBSOCKET ====================
 
 router.get("/ws", async (ctx) => {
-
   if (!ctx.isUpgradable) {
     ctx.throw(501);
   }
@@ -113,7 +126,7 @@ router.get("/ws", async (ctx) => {
   let rejected = false;
 
   ws.onclose = async () => {
-    if (rejected) return;  // ← ignorer si rejeté
+    if (rejected) return; // ← ignorer si rejeté
 
     players.delete(playerId);
     sockets.delete(playerId);
@@ -121,7 +134,9 @@ router.get("/ws", async (ctx) => {
 
     if (players.size === 0 && gameState === "playing" && currentPartyId) {
       try {
-        await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, { method: "PATCH" });
+        await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, {
+          method: "PATCH",
+        });
         console.log(`Partie ${currentPartyId} terminée`);
       } catch (err) {
         console.error("Erreur fermeture partie :", err);
@@ -140,7 +155,7 @@ router.get("/ws", async (ctx) => {
 
   const spawnPoint = getRandomSpawnPoint();
 
-  if (gameState === "noConnected" || gameState === "lobby"){
+  if (gameState === "noConnected" || gameState === "lobby") {
     sockets.set(playerId, ws);
 
     players.set(playerId, {
@@ -152,28 +167,37 @@ router.get("/ws", async (ctx) => {
       kills: 0,
       active: false,
       ready: false,
-      username: username,  // ← ajouter ça
+      username: username, // ← ajouter ça
     });
 
     sendUpdatelobby();
   }
 
-  ws.onopen = async () => {
+  ws.onopen = () => {
     try {
-     if (gameState === "playing") {
+      if (gameState === "playing") {
         rejected = true;
-        ws.send(JSON.stringify({type: "rejected"}));
+        ws.send(JSON.stringify({ type: "rejected" }));
         ws.close(1008, "Partie en cours");
         return;
       }
-      ws.send(JSON.stringify({ type: "playerId", playerId, startX: spawnPoint.x, startY: spawnPoint.y }));
-      ws.send(JSON.stringify({ type: "mapSize", height: mapHeight, width: mapWidth }));
-      ws.send(JSON.stringify({ type: getCurrentDayTime()}));
+      ws.send(
+        JSON.stringify({
+          type: "playerId",
+          playerId,
+          startX: spawnPoint.x,
+          startY: spawnPoint.y,
+        }),
+      );
+      ws.send(
+        JSON.stringify({ type: "mapSize", height: mapHeight, width: mapWidth }),
+      );
+      ws.send(JSON.stringify({ type: getCurrentDayTime() }));
     } catch (err) {
       console.error("Erreur onopen :", err);
     }
   };
-    
+
   ws.onmessage = async (event) => {
     try {
       const data = JSON.parse(event.data);
@@ -198,8 +222,8 @@ router.get("/ws", async (ctx) => {
             startGame();
           }
           break;
-        }
-      } catch (err) {
+      }
+    } catch (err) {
       console.error("Erreur onmessage :", err);
     }
   };
@@ -233,31 +257,51 @@ async function startGame() {
   await giveRoleAll();
 }
 
-async function giveRoleAll(){
-
-  let tabInt = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
-  let tabPlayer: any[] = [];
+async function giveRoleAll() {
+  const tabInt = [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+  ];
+  const tabPlayer: string[] = [];
   let i = 0;
 
   players.forEach((player) => {
     tabPlayer[i] = player.id;
     i += 1;
 
-    let indexrand1 = getRandomInt(players.size);
-    let indexrand2 = getRandomInt(players.size);
+    const indexrand1 = getRandomInt(players.size);
+    const indexrand2 = getRandomInt(players.size);
     let buffer = 0;
 
     buffer = tabInt[indexrand1];
     tabInt[indexrand1] = tabInt[indexrand2];
     tabInt[indexrand2] = buffer;
-
   });
 
   i = 0;
-  let rolePossible = roleSelonNbJoueur[players.size];
+  const rolePossible = roleSelonNbJoueur[players.size];
 
   for (const playerId of tabPlayer) {
-  // ton code
+    // ton code
     // il  faut ici choisir un rôle aléatoirement
     let role = rolePossible.charAt(tabInt[i]);
     let role_id = 0;
@@ -278,7 +322,11 @@ async function giveRoleAll(){
 
     i++;
 
-    console.log("Envoi historique:", { user_id: 1, party_id: currentPartyId, role_id: role_id });
+    console.log("Envoi historique:", {
+      user_id: 1,
+      party_id: currentPartyId,
+      role_id: role_id,
+    });
 
     await fetchWithRetry(`${API_URL}/historiques`, {
       method: "POST",
@@ -289,7 +337,7 @@ async function giveRoleAll(){
         role_id: role_id,
       }),
     });
-    activatePlayer(playerId, role);  // passe aussi le role
+    activatePlayer(playerId, role); // passe aussi le role
     const playerSocket = sockets.get(playerId);
     console.log(`Joueur role ${role}`);
     if (playerSocket?.readyState === WebSocket.OPEN) {
@@ -303,7 +351,10 @@ function createPlayerId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
-function updatePlayer(playerId: string, data: { x: number; y: number; d: string }) {
+function updatePlayer(
+  playerId: string,
+  data: { x: number; y: number; d: string },
+) {
   const player = players.get(playerId);
   if (player) {
     player.x = data.x;
@@ -331,20 +382,17 @@ function miseAjourReady() {
   nbReady = 0;
   players.forEach((player) => {
     if (player.ready) {
-      nbReady +=1;
+      nbReady += 1;
     }
-  })
+  });
 }
 
 function checkAllReady() {
   miseAjourReady();
-  if (players.size >=3 && nbReady == players.size) {
-    return true;
-  }
-  return false;
+  return players.size >= 3 && nbReady == players.size;
 }
 
-async function sendKilled(playerId: string) {
+function sendKilled(playerId: string) {
   const data = JSON.stringify({ type: "killed", playerId });
   sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -355,7 +403,11 @@ async function sendKilled(playerId: string) {
 
 function sendUpdatelobby() {
   miseAjourReady();
-  const data = JSON.stringify({ type: "lobbyUpdate", nbReady, total : players.size });
+  const data = JSON.stringify({
+    type: "lobbyUpdate",
+    nbReady,
+    total: players.size,
+  });
   sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(data);
@@ -365,59 +417,54 @@ function sendUpdatelobby() {
 
 function switchDayTime() {
   if (gameState == "playing") {
-    if (isMorning){
+    if (isMorning) {
       isMorning = false;
       isNoon = true;
       const data = JSON.stringify({ type: "isNoon" });
       sockets.forEach((client) => {
-          if (client.readyState === 1 ) {
-              client.send(data);
-          }
+        if (client.readyState === 1) {
+          client.send(data);
+        }
       });
-    }
-    else if (isNoon){
+    } else if (isNoon) {
       isNoon = false;
       isAfternoon = true;
       const data = JSON.stringify({ type: "isAfternoon" });
       sockets.forEach((client) => {
-          if (client.readyState === 1 ) {
-              client.send(data);
-          }
+        if (client.readyState === 1) {
+          client.send(data);
+        }
       });
-    }
-    else if (isAfternoon){
+    } else if (isAfternoon) {
       isAfternoon = false;
       isNight = true;
       const data = JSON.stringify({ type: "isNight" });
       sockets.forEach((client) => {
-          if (client.readyState === 1 ) {
-              client.send(data);
-          }
+        if (client.readyState === 1) {
+          client.send(data);
+        }
       });
-    }
-    else if (isNight){
+    } else if (isNight) {
       isNight = false;
       isMidnight = true;
       const data = JSON.stringify({ type: "isMidnight" });
       sockets.forEach((client) => {
-          if (client.readyState === 1 ) {
-              client.send(data);
-          }
+        if (client.readyState === 1) {
+          client.send(data);
+        }
       });
-    }
-    else if (isMidnight){
+    } else if (isMidnight) {
       isMidnight = false;
       isMorning = true;
       const data = JSON.stringify({ type: "isMorning" });
       sockets.forEach((client) => {
-          if (client.readyState === 1 ) {
-              client.send(data);
-          }
+        if (client.readyState === 1) {
+          client.send(data);
+        }
       });
     }
   }
 }
-
 
 async function tryKill(attackerId: string, targetId: string) {
   const attacker = players.get(attackerId);
@@ -438,14 +485,27 @@ async function tryKill(attackerId: string, targetId: string) {
 }
 
 function setObstacle() {
-  const obstacles: { x: number; y: number; width: number; height: number; }[] = [];
+  const obstacles: { x: number; y: number; width: number; height: number }[] =
+    [];
 
-  rectangles.forEach((rectangle) => obstacles.push({ x: rectangle[0], y: rectangle[1], width: rectangle[2], height: rectangle[3] }))
+  rectangles.forEach((rectangle) =>
+    obstacles.push({
+      x: rectangle[0],
+      y: rectangle[1],
+      width: rectangle[2],
+      height: rectangle[3],
+    })
+  );
 
   return obstacles;
 }
 
-function collidesWithObstacle(x: number, y: number, width: number, height: number): boolean {
+function collidesWithObstacle(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
   for (const obstacle of obstacles) {
     if (
       x < obstacle.x + obstacle.width &&
@@ -484,19 +544,20 @@ function getCurrentDayTime() {
   return "Inconnu";
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration depuis les variables d'environnement
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = parseInt(Deno.env.get("API_PORT") ?? "3000");
-//const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "http://localhost:8080";
+//const FRONT_ORIGIN = Deno.env.get("FRONT_ORIGIN") ?? "https://localhost:8080";
 
 // Vérification: le secret JWT doit être défini explicitement
 const JWT_SECRET = Deno.env.get("JWT_SECRET");
 
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
-  console.error("FATAL: JWT_SECRET doit être défini et faire au moins 32 caractères.");
+  console.error(
+    "FATAL: JWT_SECRET doit être défini et faire au moins 32 caractères.",
+  );
   console.error("Générer avec : openssl rand -base64 64");
   Deno.exit(1);
 }
@@ -506,11 +567,11 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const secretKey = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(JWT_SECRET),
-    { name: "HMAC", hash: "SHA-512" },
-    false,
-    ["sign", "verify"]
+  "raw",
+  new TextEncoder().encode(JWT_SECRET),
+  { name: "HMAC", hash: "SHA-512" },
+  false,
+  ["sign", "verify"],
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -519,7 +580,7 @@ const secretKey = await crypto.subtle.importKey(
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MAX_LOGIN_ATTEMPTS = 5;
-const RATE_WINDOW_MS     = 60_000;
+const RATE_WINDOW_MS = 60_000;
 
 interface RateEntry {
   count: number;
@@ -528,7 +589,7 @@ interface RateEntry {
 const loginAttempts = new Map<string, RateEntry>();
 
 function isRateLimited(ip: string): boolean {
-  const now   = Date.now();
+  const now = Date.now();
   const entry = loginAttempts.get(ip);
 
   if (!entry || now > entry.resetAt) {
@@ -548,27 +609,29 @@ function isRateLimited(ip: string): boolean {
 // Helpers cookie et token
 // ─────────────────────────────────────────────────────────────────────────────
 
-function setAuthCookie(ctx: any, token: string): void {
+function setAuthCookie(ctx: Context, token: string): void {
   ctx.response.headers.set(
-      "Set-Cookie",
-      `auth_token=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`
+    "Set-Cookie",
+    `auth_token=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`,
   );
 }
 
-function clearAuthCookie(ctx: any): void {
+function clearAuthCookie(ctx: Context): void {
   ctx.response.headers.set(
-      "Set-Cookie",
-      `auth_token=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`
+    "Set-Cookie",
+    `auth_token=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`,
   );
 }
 
-function getTokenFromCookie(ctx: any): string | null {
+function getTokenFromCookie(ctx: Context): string | null {
   const cookie = ctx.request.headers.get("cookie") ?? "";
-  const match  = cookie.split("; ").find((row: string) => row.startsWith("auth_token="));
+  const match = cookie.split("; ").find((row: string) =>
+    row.startsWith("auth_token=")
+  );
   return match ? match.split("=")[1] : null;
 }
 
-async function requireAuth(ctx, next) {
+async function requireAuth(ctx: Context, next: () => Promise<unknown>) {
   const token = getTokenFromCookie(ctx);
   if (!token) {
     ctx.response.redirect("/login.html");
@@ -588,16 +651,23 @@ async function requireAuth(ctx, next) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function validateUsername(username: string): string | null {
-  if (!username || username.length < 3) return "Le nom d'utilisateur doit faire au moins 3 caractères.";
-  if (username.length > 30)            return "Le nom d'utilisateur ne peut pas dépasser 30 caractères.";
-  if (!/^[a-zA-Z0-9_]+$/.test(username))
+  if (!username || username.length < 3) {
+    return "Le nom d'utilisateur doit faire au moins 3 caractères.";
+  }
+  if (username.length > 30) {
+    return "Le nom d'utilisateur ne peut pas dépasser 30 caractères.";
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
     return "Le nom d'utilisateur ne peut contenir que des lettres, chiffres et underscores.";
+  }
   return null;
 }
 
 function validatePassword(password: string): string | null {
-  if (!password || password.length < 8) return "Le mot de passe doit faire au moins 8 caractères.";
-  if (password.length > 128)            return "Le mot de passe est trop long.";
+  if (!password || password.length < 8) {
+    return "Le mot de passe doit faire au moins 8 caractères.";
+  }
+  if (password.length > 128) return "Le mot de passe est trop long.";
   return null;
 }
 
@@ -612,7 +682,7 @@ router.post("/register", async (ctx) => {
     body = await ctx.request.body.json();
   } catch {
     ctx.response.status = 400;
-    ctx.response.body   = { error: "Corps de requête JSON invalide." };
+    ctx.response.body = { error: "Corps de requête JSON invalide." };
     return;
   }
 
@@ -622,55 +692,55 @@ router.post("/register", async (ctx) => {
   const usernameError = validateUsername(username);
   if (usernameError) {
     ctx.response.status = 400;
-    ctx.response.body   = { error: usernameError };
+    ctx.response.body = { error: usernameError };
     return;
   }
 
   const passwordError = validatePassword(password);
   if (passwordError) {
     ctx.response.status = 400;
-    ctx.response.body   = { error: passwordError };
+    ctx.response.body = { error: passwordError };
     return;
   }
 
   // Hachage du mot de passe (reste dans server.ts, api.ts ne voit jamais le mot de passe en clair)
-  const salt          = await bcrypt.genSalt(12);
+  const salt = await bcrypt.genSalt(12);
   const password_hash = await bcrypt.hash(password, salt);
 
   // Déléguer la persistance à api.ts
   let res: Response;
   try {
     res = await fetchWithRetry(`${API_URL}/users/register`, {
-      method:  "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ username, password_hash }),
+      body: JSON.stringify({ username, password_hash }),
     });
   } catch {
     ctx.response.status = 503;
-    ctx.response.body   = { error: "Service indisponible, réessayez plus tard." };
+    ctx.response.body = { error: "Service indisponible, réessayez plus tard." };
     return;
   }
 
   if (res.status === 409) {
     ctx.response.status = 409;
-    ctx.response.body   = { error: "Ce nom d'utilisateur est déjà pris." };
+    ctx.response.body = { error: "Ce nom d'utilisateur est déjà pris." };
     return;
   }
   if (!res.ok) {
     ctx.response.status = 500;
-    ctx.response.body   = { error: "Erreur lors de la création du compte." };
+    ctx.response.body = { error: "Erreur lors de la création du compte." };
     return;
   }
 
   // Auto-login après inscription
   const token = await create(
-      { alg: "HS512", typ: "JWT" },
-      { username },
-      secretKey
+    { alg: "HS512", typ: "JWT" },
+    { username },
+    secretKey,
   );
   setAuthCookie(ctx, token);
   ctx.response.status = 201;
-  ctx.response.body   = { message: "Compte créé avec succès.", username };
+  ctx.response.body = { message: "Compte créé avec succès.", username };
 });
 
 // ── POST /login ───────────────────────────────────────────────────────────────
@@ -679,7 +749,9 @@ router.post("/login", async (ctx) => {
   const ip = ctx.request.ip;
   if (isRateLimited(ip)) {
     ctx.response.status = 429;
-    ctx.response.body   = { error: "Trop de tentatives. Réessayez dans une minute." };
+    ctx.response.body = {
+      error: "Trop de tentatives. Réessayez dans une minute.",
+    };
     return;
   }
 
@@ -688,7 +760,7 @@ router.post("/login", async (ctx) => {
     body = await ctx.request.body.json();
   } catch {
     ctx.response.status = 400;
-    ctx.response.body   = { error: "Corps de requête JSON invalide." };
+    ctx.response.body = { error: "Corps de requête JSON invalide." };
     return;
   }
 
@@ -697,7 +769,7 @@ router.post("/login", async (ctx) => {
 
   if (!username || !password) {
     ctx.response.status = 400;
-    ctx.response.body   = { error: "Nom d'utilisateur et mot de passe requis." };
+    ctx.response.body = { error: "Nom d'utilisateur et mot de passe requis." };
     return;
   }
 
@@ -705,7 +777,7 @@ router.post("/login", async (ctx) => {
   let userRes: Response | null = null;
   try {
     userRes = await fetchWithRetry(
-        `${API_URL}/users/by-username/${encodeURIComponent(username)}`
+      `${API_URL}/users/by-username/${encodeURIComponent(username)}`,
     );
   } catch {
     // L'API est down — on continue avec un hash invalide pour éviter le timing attack
@@ -715,8 +787,11 @@ router.post("/login", async (ctx) => {
   let fetchedUsername: string | null = null;
 
   if (userRes?.ok) {
-    const userData = await userRes.json() as { username: string; password_hash: string };
-    hashToCheck     = userData.password_hash;
+    const userData = await userRes.json() as {
+      username: string;
+      password_hash: string;
+    };
+    hashToCheck = userData.password_hash;
     fetchedUsername = userData.username;
   }
 
@@ -726,25 +801,30 @@ router.post("/login", async (ctx) => {
   // Message d'erreur identique dans les deux cas (user inexistant ou mauvais mdp)
   if (!fetchedUsername || !valid) {
     ctx.response.status = 401;
-    ctx.response.body   = { error: "Nom d'utilisateur ou mot de passe incorrect."};
+    ctx.response.body = {
+      error: "Nom d'utilisateur ou mot de passe incorrect.",
+    };
     return;
   }
 
   const token = await create(
-      { alg: "HS512", typ: "JWT" },
-      { username: fetchedUsername },
-      secretKey
+    { alg: "HS512", typ: "JWT" },
+    { username: fetchedUsername },
+    secretKey,
   );
   setAuthCookie(ctx, token);
   ctx.response.status = 200;
-  ctx.response.body   = { message: "Connexion réussie.", username: fetchedUsername };
+  ctx.response.body = {
+    message: "Connexion réussie.",
+    username: fetchedUsername,
+  };
 });
 
 // ── POST /logout ──────────────────────────────────────────────────────────────
 router.post("/logout", (ctx) => {
   clearAuthCookie(ctx);
   ctx.response.status = 200;
-  ctx.response.body   = { message: "Déconnexion réussie." };
+  ctx.response.body = { message: "Déconnexion réussie." };
 });
 
 // ── GET /verify ───────────────────────────────────────────────────────────────
@@ -752,18 +832,18 @@ router.get("/verify", async (ctx) => {
   const token = getTokenFromCookie(ctx);
   if (!token) {
     ctx.response.status = 401;
-    ctx.response.body   = { error: "Non authentifié." };
+    ctx.response.body = { error: "Non authentifié." };
     return;
   }
 
   try {
     const payload = await verify(token, secretKey);
     ctx.response.status = 200;
-    ctx.response.body   = { username: payload.username };
+    ctx.response.body = { username: payload.username };
   } catch {
     clearAuthCookie(ctx);
     ctx.response.status = 401;
-    ctx.response.body   = { error: "Token invalide ou expiré." };
+    ctx.response.body = { error: "Token invalide ou expiré." };
   }
 });
 
@@ -794,24 +874,25 @@ router.get("/index.html", requireAuth, async (ctx) => {
 const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",");
 
 app.use(
-    oakCors({
-      origin: (requestOrigin) => {
-        if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
-          return requestOrigin || "*";
-        }
-        return false;
-      },
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-      credentials: true,
-    }),
+  oakCors({
+    origin: (requestOrigin) => {
+      if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+        return requestOrigin || "*";
+      }
+      return false;
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
 );
-
 
 // Logger minimal (sans données sensibles)
 app.use(async (ctx, next) => {
   await next();
-  console.log(`${ctx.request.method} ${ctx.request.url.pathname} → ${ctx.response.status}`);
+  console.log(
+    `${ctx.request.method} ${ctx.request.url.pathname} → ${ctx.response.status}`,
+  );
 });
 
 // ==================== DÉMARRAGE ====================
@@ -819,4 +900,11 @@ app.use(async (ctx, next) => {
 console.log("Server listening on port 3000");
 app.use(router.routes());
 app.use(router.allowedMethods());
-await app.listen({ port: PORT });
+// ==================== HTTPS ====================
+
+await app.listen({
+  port: PORT,
+  secure: true,
+  cert: await Deno.readTextFile("./certs/localhost+2.pem"),
+  key: await Deno.readTextFile("./certs/localhost+2-key.pem"),
+});
