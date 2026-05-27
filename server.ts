@@ -668,7 +668,16 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
   console.error(
     "FATAL: JWT_SECRET doit être défini et faire au moins 32 caractères.",
   );
-  console.error("Générer avec : openssl rand -base64 64");
+  Deno.exit(1);
+}
+
+// Vérification: le secret JWT doit être défini explicitement
+const POIVRE = Deno.env.get("POIVRE");
+
+if (!POIVRE || POIVRE.length < 16) {
+  console.error(
+    "FATAL: POIVRE manquant ou trop court dans",
+  );
   Deno.exit(1);
 }
 
