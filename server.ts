@@ -9,6 +9,13 @@ import bcrypt from "@bcryptjs";
 
 const API_URL = Deno.env.get("API_URL") ?? "http://api:8000";
 
+// Vérification de l'adresse pour éviter la vulnérabilité SSRF (Server-Side Request Forgery)
+const allowedApiUrls = ["http://api:8000"];
+if (!allowedApiUrls.includes(API_URL)) {
+  console.error(`FATAL: API_URL non autorisée: ${API_URL}`);
+  Deno.exit(1);
+}
+
 async function fetchWithRetry(
   url: string,
   options?: RequestInit,
@@ -17,6 +24,7 @@ async function fetchWithRetry(
 ): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
+      // nosemgrep: javascript.lang.security.audit.ssrf.node-ssrf
       const res = await fetch(url, options);
       if (res.ok) return res;
       console.log(`Réponse non-ok: ${res.status} pour ${url}`); // ← ici
