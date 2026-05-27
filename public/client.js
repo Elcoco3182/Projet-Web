@@ -216,6 +216,9 @@ socket.onmessage = (event) => {
           document.getElementById("lobbyCount").style.display = "none";
           rejected = true;
           break;
+        case "gameEnd":
+          displayGameEndMessage(data.result);
+          break;
     }
 };
 
@@ -392,6 +395,56 @@ function drawMap() {
   ctx.save();
   ctx.drawImage(images["mapImage"],0, 0, 4000, 1550, 0, 0, 4000, 1550);
   ctx.restore();
+}
+
+function displayGameEndMessage(result) {
+  canvas.style.display = "none";
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 1000; font-family: Arial, sans-serif;
+  `;
+
+  const title = document.createElement("h1");
+  title.style.cssText = "font-size: 48px; margin-bottom: 16px;";
+
+  const subtitle = document.createElement("p");
+  subtitle.style.cssText = "font-size: 22px; color: #ccc; margin-bottom: 32px;";
+
+  const countdown = document.createElement("p");
+  countdown.style.cssText = "font-size: 16px; color: #888;";
+
+  if (result === "vicInno") {
+    title.style.color = "#4fc3f7";
+    title.textContent = "🏆 Les innocents ont gagné !";
+    subtitle.textContent = "L'assassin a été éliminé.";
+  } else {
+    title.style.color = "#ef5350";
+    title.textContent = "💀 L'assassin a gagné !";
+    subtitle.textContent = "Les innocents ont été éliminés.";
+  }
+
+  overlay.appendChild(title);
+  overlay.appendChild(subtitle);
+  overlay.appendChild(countdown);
+  document.body.appendChild(overlay);
+
+  // Compte à rebours de 5s puis retour au lobby
+  let secondes = 5;
+  countdown.textContent = `Retour au lobby dans ${secondes}s…`;
+  const timer = setInterval(() => {
+    secondes--;
+    if (secondes <= 0) {
+      clearInterval(timer);
+      window.location.reload();
+    } else {
+      countdown.textContent = `Retour au lobby dans ${secondes}s…`;
+    }
+  }, 1000);
 }
 
 function misAjourSourceY() {
