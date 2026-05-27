@@ -62,7 +62,7 @@ const phaseDurations = {
   isAfternoon: 6_000,
   isNight: 1_000,
   isMidnight: 40_500,
-  isDawn: 40_500,
+  isDawn: 4_500,
 };
 
 // ==================== CONFIG SERVEUR ====================
@@ -526,6 +526,36 @@ function forceSwitchDayTime() {
   }
 
   switchDayTime();
+}
+
+function _tpAllJoueurNoon() {
+  const _placeTable = [
+    [1375, 200],
+    [1375, 225],
+    [1375, 250],
+    [1375, 275],
+    [1375, 300],
+    [1375, 325],
+    [1425, 375],
+    [1450, 375],
+    [1475, 375],
+    [1500, 375],
+    [1525, 375],
+    [1550, 375],
+    [1600, 200],
+    [1600, 225],
+    [1600, 250],
+    [1600, 275],
+    [1600, 300],
+    [1600, 325],
+    [1425, 150],
+    [1450, 150],
+    [1475, 150],
+    [1500, 150],
+    [1525, 150],
+    [1550, 150],
+  ];
+  players.forEach(() => 0);
 }
 
 async function tryKill(attackerId: string, targetId: string) {

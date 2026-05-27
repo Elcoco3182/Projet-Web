@@ -366,13 +366,22 @@ function drawJoueurImage(x, y, player) {
 
     ctx.save();
 
-    if (isMidnight || isDawn){
+    if (isMidnight){
         switch (player.type) {
         case "assassin":
             ctx.drawImage(images["assassin"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
             break;
-        case "innocent":
+        case "petitefille":
+            ctx.drawImage(images["petitefille"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
+            break;
+        default:
             ctx.drawImage(images["innocent"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
+        }
+    } else if (isDawn) {
+        // pour l'instant pas de difference avec isMidnight car on a pas encore de rôle non actif à l'aube
+        switch (player.type) {
+        case "assassin":
+            ctx.drawImage(images["assassin"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
             break;
         case "petitefille":
             ctx.drawImage(images["petitefille"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
@@ -525,12 +534,13 @@ function gameLoop(timestamp) {
     if (localJoueur.died) return;
     if (socket.readyState !== WebSocket.OPEN) return;
 
-    if (keys.ArrowUp    || joystickInput.up)          localJoueur.moveUp(deltaTime);
-    if (keys.ArrowDown  || joystickInput.down)        localJoueur.moveDown(deltaTime);
-    if (keys.ArrowLeft  || joystickInput.left)        localJoueur.moveLeft(deltaTime);
-    if (keys.ArrowRight || joystickInput.right)       localJoueur.moveRight(deltaTime);
-
-    if (keys.Spacebar   || joystickInput.killBoutton) localJoueur.tryKill();
+    if (!isNoon) {
+      if (keys.ArrowUp    || joystickInput.up)          localJoueur.moveUp(deltaTime);
+      if (keys.ArrowDown  || joystickInput.down)        localJoueur.moveDown(deltaTime);
+      if (keys.ArrowLeft  || joystickInput.left)        localJoueur.moveLeft(deltaTime);
+      if (keys.ArrowRight || joystickInput.right)       localJoueur.moveRight(deltaTime);
+    }
+    if (keys.Spacebar || joystickInput.killBoutton) localJoueur.tryKill();
 
     update();
     draw();
