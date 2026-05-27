@@ -205,6 +205,10 @@ socket.onmessage = (event) => {
           break;
         case "gameStart":
           setJoueurAttributes(data.role);
+          if (data.startX !== undefined && data.startY !== undefined) {
+            localJoueur.x = data.startX;
+            localJoueur.y = data.startY;
+          }
           document.getElementById("popup").style.display = "none";
           document.getElementById("lobbyCount").style.display = "none";
           document.getElementById("dayTime").style.visibility = "visible";
