@@ -7,13 +7,12 @@ import bcrypt from "@bcryptjs";
 
 // ==================== CONFIG DB ====================
 
-const API_URL = "http://api:8000";
-//const API_URL = Deno.env.get("API_URL") ?? "http://api:8000";
+const API_URL = Deno.env.get("API_URL") ?? "http://api:8000";
 
 // Vérification de l'adresse pour éviter la vulnérabilité SSRF (Server-Side Request Forgery)
 const allowedApiUrls = ["http://api:8000"];
-if (!allowedApiUrls.includes("http://api:8000")) {
-  console.error(`FATAL: API_URL non autorisée: ${"http://api:8000"}`);
+if (!allowedApiUrls.includes(API_URL)) {
+  console.error(`FATAL: API_URL non autorisée: ${API_URL}`);
   Deno.exit(1);
 }
 
