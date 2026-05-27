@@ -12,8 +12,8 @@ const API_URL = "http://api:8000";
 
 // Vérification de l'adresse pour éviter la vulnérabilité SSRF (Server-Side Request Forgery)
 const allowedApiUrls = ["http://api:8000"];
-if (!allowedApiUrls.includes(API_URL)) {
-  console.error(`FATAL: API_URL non autorisée: ${API_URL}`);
+if (!allowedApiUrls.includes("http://api:8000")) {
+  console.error(`FATAL: API_URL non autorisée: ${"http://api:8000"}`);
   Deno.exit(1);
 }
 
