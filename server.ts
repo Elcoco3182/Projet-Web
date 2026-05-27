@@ -668,7 +668,16 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
   console.error(
     "FATAL: JWT_SECRET doit être défini et faire au moins 32 caractères.",
   );
-  console.error("Générer avec : openssl rand -base64 64");
+  Deno.exit(1);
+}
+
+// Vérification: le secret JWT doit être défini explicitement
+const POIVRE = Deno.env.get("POIVRE");
+
+if (!POIVRE || POIVRE.length < 16) {
+  console.error(
+    "FATAL: POIVRE manquant ou trop court dans",
+  );
   Deno.exit(1);
 }
 
@@ -814,8 +823,9 @@ router.post("/register", async (ctx) => {
   }
 
   // Hachage du mot de passe (reste dans server.ts, api.ts ne voit jamais le mot de passe en clair)
+  const POIVRE = Deno.env.get("POIVRE");
   const salt = await bcrypt.genSalt(12);
-  const password_hash = await bcrypt.hash(password, salt);
+  const password_hash = await bcrypt.hash(password + POIVRE, salt);
 
   // Déléguer la persistance à api.ts
   let res: Response;
@@ -906,7 +916,8 @@ router.post("/login", async (ctx) => {
   }
 
   // Timing-safe : bcrypt.compare s'exécute même si l'utilisateur n'existe pas
-  const valid = await bcrypt.compare(password, hashToCheck);
+  const POIVRE = Deno.env.get("POIVRE");
+  const valid = await bcrypt.compare(password + POIVRE, hashToCheck);
 
   // Message d'erreur identique dans les deux cas (user inexistant ou mauvais mdp)
   if (!fetchedUsername || !valid) {
