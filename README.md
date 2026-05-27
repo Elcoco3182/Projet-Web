@@ -89,6 +89,8 @@ mkcert -install
 mkcert localhost 127.0.0.1 ::1
 ```
 
+De plus, changer dans le .env les http en https
+
 ## Pipeline CI GitLab
 
 Le pipeline se déclenche automatiquement à chaque push. Il comprend 3 stages :
