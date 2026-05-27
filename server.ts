@@ -814,8 +814,9 @@ router.post("/register", async (ctx) => {
   }
 
   // Hachage du mot de passe (reste dans server.ts, api.ts ne voit jamais le mot de passe en clair)
+  const POIVRE = Deno.env.get("POIVRE");
   const salt = await bcrypt.genSalt(12);
-  const password_hash = await bcrypt.hash(password, salt);
+  const password_hash = await bcrypt.hash(password + POIVRE, salt);
 
   // Déléguer la persistance à api.ts
   let res: Response;
