@@ -916,9 +916,8 @@ router.post("/login", async (ctx) => {
   }
 
   // Timing-safe : bcrypt.compare s'exécute même si l'utilisateur n'existe pas
-  const POIVRE =  Deno.env.get("POIVRE")
+  const POIVRE = Deno.env.get("POIVRE");
   const valid = await bcrypt.compare(password + POIVRE, hashToCheck);
-  
 
   // Message d'erreur identique dans les deux cas (user inexistant ou mauvais mdp)
   if (!fetchedUsername || !valid) {
