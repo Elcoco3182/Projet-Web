@@ -139,7 +139,7 @@ router.get("/ws", async (ctx) => {
     gameState = "lobby";
   }
 
-  const spawnPoint = getRandomSpawnPoint();
+  const spawnPoint = getRandomSpawnPoint(2300, 2000, 1400, 1000);
 
   if (gameState === "noConnected" || gameState === "lobby") {
     sockets.set(playerId, ws);
@@ -238,6 +238,10 @@ function getRandomInt(max: number) {
   return Math.floor(Math.random() * max);
 }
 
+function getRandomArbitrary(min: number, max: number) {
+  return Math.random() * (max - min) + min;
+}
+
 async function startGame() {
   await fecthPartiApi();
   await giveRoleAll();
@@ -323,12 +327,22 @@ async function giveRoleAll() {
         role_id: role_id,
       }),
     });
-    activatePlayer(playerId, role); // passe aussi le role
+
+    const spawn = getRandomSpawnPoint(2300, 2000, 1400, 1000);
+    activatePlayer(playerId, role, spawn);
     const playerSocket = sockets.get(playerId);
     console.log(`Joueur role ${role}`);
     if (playerSocket?.readyState === WebSocket.OPEN) {
-      playerSocket.send(JSON.stringify({ type: "gameStart", role }));
+      playerSocket.send(
+        JSON.stringify({
+          type: "gameStart",
+          role,
+          startX: spawn.x,
+          startY: spawn.y,
+        }),
+      );
     }
+
     console.log(`Joueur ${playerId} enregistré avec le rôle ${role}`);
   }
 }
@@ -349,11 +363,19 @@ function updatePlayer(
   }
 }
 
-function activatePlayer(playerId: string, role: string) {
+function activatePlayer(
+  playerId: string,
+  role: string,
+  spawn?: { x: number; y: number },
+) {
   const player = players.get(playerId);
   if (player) {
     player.active = true;
     player.type = role;
+    if (spawn) {
+      player.x = spawn.x;
+      player.y = spawn.y;
+    }
   }
 }
 
@@ -552,7 +574,7 @@ function resetToLobby() {
     player.active = false;
     player.type = undefined;
     // Nouveau point de spawn
-    const spawn = getRandomSpawnPoint();
+    const spawn = getRandomSpawnPoint(2300, 2000, 1400, 1000);
     player.x = spawn.x;
     player.y = spawn.y;
   });
@@ -602,13 +624,18 @@ function collidesWithObstacle(
   return false;
 }
 
-function getRandomSpawnPoint(): { x: number; y: number } {
+function getRandomSpawnPoint(
+  maxX: number,
+  minX: number,
+  maxY: number,
+  minY: number,
+): { x: number; y: number } {
   let x = 0, y = 0;
   let validSpawn = false;
 
   while (!validSpawn) {
-    x = Math.random() * (mapWidth - 100) + 50;
-    y = Math.random() * (mapHeight - 100) + 50;
+    x = getRandomArbitrary(minX, maxX);
+    y = getRandomArbitrary(minY, maxY);
 
     if (!collidesWithObstacle(x, y, 60, 50)) {
       validSpawn = true;
