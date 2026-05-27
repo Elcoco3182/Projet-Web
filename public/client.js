@@ -40,12 +40,10 @@ canvasNight.height = canvas.height;
 let viewportWidth = canvas.width;
 let viewportHeight = canvas.height;
 
-canvas.style.display = "none";
-
 let images = {};
 
 let pendingUsername = null;
-
+document.getElementById("dayTime").style.visibility = "hidden";
 
 // Affiche que la connexion (ws) est en train de se faire
 const submitBtn = document.querySelector("#joueurTypeForm button");
@@ -60,7 +58,7 @@ class Joueur {
         this.x = x;
         this.y = y;
         this.died = false;
-        this.speed = 1; 
+        this.speed = 8; 
     }
 
     moveUp(dt) {
@@ -209,7 +207,7 @@ socket.onmessage = (event) => {
           setJoueurAttributes(data.role);
           document.getElementById("popup").style.display = "none";
           document.getElementById("lobbyCount").style.display = "none";
-          canvas.style.display = "block";
+          document.getElementById("dayTime").style.visibility = "visible";
           break;
         case "rejected":
           document.getElementById("popup").style.display = "none";
