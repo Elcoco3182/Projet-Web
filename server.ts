@@ -125,28 +125,14 @@ router.get("/ws", async (ctx) => {
   const playerId = createPlayerId();
   let rejected = false;
 
-  ws.onclose = async () => {
-    if (rejected) return; // ← ignorer si rejeté
+  ws.onclose = () => {
+    if (rejected) return;
 
     players.delete(playerId);
     sockets.delete(playerId);
     sendUpdatelobby();
 
-    if (players.size === 0 && gameState === "playing" && currentPartyId) {
-      try {
-        await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, {
-          method: "PATCH",
-        });
-        console.log(`Partie ${currentPartyId} terminée`);
-      } catch (err) {
-        console.error("Erreur fermeture partie :", err);
-      }
-    }
-
-    if (players.size === 0) {
-      gameState = "noConnected";
-      currentPartyId = null;
-    }
+    closeGame();
   };
 
   if (gameState === "noConnected") {
@@ -482,6 +468,103 @@ async function tryKill(attackerId: string, targetId: string) {
 
   await sendKilled(targetId);
   players.delete(targetId);
+
+  const result = isEndGame();
+  if (result !== "continue") {
+    broadcastGameEnd(result);
+    closeGame();
+  }
+}
+
+function isEndGame() {
+  let nbInnocent = 0;
+  let nbPsyco = 0;
+  players.forEach((player) => {
+    switch (player.type) {
+      case "innocent":
+        nbInnocent += 1;
+        break;
+      case "petitefille":
+        nbInnocent += 1;
+        break;
+      case "assassin":
+        nbPsyco += 1;
+        break;
+    }
+  });
+
+  if (nbPsyco <= 0) {
+    return "vicInno";
+  }
+  if (nbPsyco >= nbInnocent) {
+    return "vicPsyco";
+  }
+  return "continue";
+}
+
+async function closeGame() {
+  if (gameState === "playing") {
+    const result = isEndGame();
+    if (result !== "continue") {
+      broadcastGameEnd(result);
+    }
+  }
+
+  if (players.size === 0 && gameState === "playing" && currentPartyId) {
+    try {
+      await fetchWithRetry(`${API_URL}/parties/${currentPartyId}/end`, {
+        method: "PATCH",
+      });
+      console.log(`Partie ${currentPartyId} terminée`);
+    } catch (err) {
+      console.error("Erreur fermeture partie :", err);
+    }
+  }
+
+  if (players.size === 0) {
+    gameState = "noConnected";
+    currentPartyId = null;
+  }
+}
+
+function broadcastGameEnd(result: string) {
+  const data = JSON.stringify({ type: "gameEnd", result });
+  sockets.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(data);
+    }
+  });
+
+  // Reset du state côté serveur avec un délai pour laisser le message arriver
+  setTimeout(() => {
+    resetToLobby();
+  }, 5000);
+}
+
+function resetToLobby() {
+  gameState = "lobby";
+  nbReady = 0;
+  currentPartyId = null;
+
+  // Remettre tous les joueurs en état "non prêt"
+  players.forEach((player) => {
+    player.ready = false;
+    player.active = false;
+    player.type = undefined;
+    // Nouveau point de spawn
+    const spawn = getRandomSpawnPoint();
+    player.x = spawn.x;
+    player.y = spawn.y;
+  });
+
+  // Réinitialiser le cycle jour/nuit
+  isMorning = false;
+  isNoon = false;
+  isAfternoon = true;
+  isNight = false;
+  isMidnight = false;
+
+  sendUpdatelobby();
 }
 
 function setObstacle() {
