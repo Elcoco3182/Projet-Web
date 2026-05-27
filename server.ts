@@ -7,7 +7,7 @@ import bcrypt from "@bcryptjs";
 
 // ==================== CONFIG DB ====================
 
-const API_URL= "http://api:8000";
+const API_URL = "http://api:8000";
 //const API_URL = Deno.env.get("API_URL") ?? "http://api:8000";
 
 // Vérification de l'adresse pour éviter la vulnérabilité SSRF (Server-Side Request Forgery)
