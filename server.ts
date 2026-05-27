@@ -10,10 +10,9 @@ import bcrypt from "@bcryptjs";
 const API_URL = Deno.env.get("API_URL") ?? "http://api:8000";
 
 // Vérification de l'adresse pour éviter la vulnérabilité SSRF (Server-Side Request Forgery)
-const allowedHosts = ["api"];
-const apiHost = new URL(API_URL).hostname;
-if (!allowedHosts.includes(apiHost)) {
-  console.error(`FATAL: API_URL pointe vers un hôte non autorisé: ${apiHost}`);
+const allowedApiUrls = ["http://api:8000"];
+if (!allowedApiUrls.includes(API_URL)) {
+  console.error(`FATAL: API_URL non autorisée: ${API_URL}`);
   Deno.exit(1);
 }
 
