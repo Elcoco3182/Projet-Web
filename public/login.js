@@ -77,7 +77,7 @@ async function login(){
         showError("login-error", "Impossible de contacter le serveur.");
     } finally {
         //réactive le bouton dans tous les cas (succès ou erreur)
-        setLoading("login_button", false);
+        setLoading("btn-login", false);
     }
 }
 
