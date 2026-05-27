@@ -139,7 +139,7 @@ router.get("/ws", async (ctx) => {
     gameState = "lobby";
   }
 
-  const spawnPoint = getRandomSpawnPoint(2300, 2000, 1400, 1000);
+  const spawnPoint = getRandomSpawnPoint(2250, 2000, 1300, 1000);
 
   if (gameState === "noConnected" || gameState === "lobby") {
     sockets.set(playerId, ws);
@@ -328,7 +328,7 @@ async function giveRoleAll() {
       }),
     });
 
-    const spawn = getRandomSpawnPoint(2300, 2000, 1400, 1000);
+    const spawn = getRandomSpawnPoint(2250, 2000, 1300, 1000);
     activatePlayer(playerId, role, spawn);
     const playerSocket = sockets.get(playerId);
     console.log(`Joueur role ${role}`);
@@ -574,7 +574,7 @@ function resetToLobby() {
     player.active = false;
     player.type = undefined;
     // Nouveau point de spawn
-    const spawn = getRandomSpawnPoint(2300, 2000, 1400, 1000);
+    const spawn = getRandomSpawnPoint(2250, 2000, 1300, 1000);
     player.x = spawn.x;
     player.y = spawn.y;
   });
