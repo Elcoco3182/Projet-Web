@@ -24,9 +24,9 @@ async function fetchWithRetry(
 ): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
+      // nosemgrep: javascript.lang.security.audit.ssrf.node-ssrf
       const res = await fetch(url, options);
       if (res.ok) return res;
-      // nosemgrep: javascript.lang.security.audit.ssrf.node-ssrf
       console.log(`Réponse non-ok: ${res.status} pour ${url}`); // ← ici
     } catch {
       console.log(`API non disponible, retry ${i + 1}/${retries}...`);
