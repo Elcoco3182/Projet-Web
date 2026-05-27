@@ -20,6 +20,7 @@ let isNoon = false;
 let isAfternoon = false;
 let isNight = false;
 let isMidnight = false;
+let isDawn = false;
 
 let isReady = false;
 let rejected = false;
@@ -107,7 +108,7 @@ class Joueur {
         });
 
         if (target && this.canKill()) {
-            socket.send(JSON.stringify({type: "kill", targetId: target.id}));
+            socket.send(JSON.stringify({type: "killFromAssassin", targetId: target.id}));
         }
     }
 }
@@ -184,7 +185,7 @@ socket.onmessage = (event) => {
           mapHeight = data.height;
           break;
         case "isMorning":
-          isMidnight = false;
+          isDawn = false;
           isMorning = true;
           break;
         case "isNoon":
@@ -202,6 +203,10 @@ socket.onmessage = (event) => {
         case "isMidnight":
           isNight = false;
           isMidnight = true;
+          break;
+        case "isDawn":
+          isMidnight = false;
+          isDawn = true;
           break;
         case "gameStart":
           setJoueurAttributes(data.role);
@@ -301,7 +306,7 @@ function draw() {
 
   drawBorder();
 
-  if (isNight || isMidnight) {
+  if (isNight || isMidnight || isDawn) {
     applyNightMask(ctxNight, screenX, screenY, 150 * cameraZoom);
 
     ctx.save();
@@ -361,7 +366,7 @@ function drawJoueurImage(x, y, player) {
 
     ctx.save();
 
-    if (isMidnight){
+    if (isMidnight || isDawn){
         switch (player.type) {
         case "assassin":
             ctx.drawImage(images["assassin"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
@@ -597,10 +602,10 @@ function displayErrorMessage(message) {
 
 function applyNightMask(ctxNight, px, py, radius) {
   var rad = radius;
-  if (localJoueur.type === "assassin"){
+  if (localJoueur.type === "assassin" && (isMidnight || isDawn)){
     rad *= 1.7;
   }
-  else if (localJoueur.type === "petitefille"){
+  else if (localJoueur.type === "petitefille" && (isMidnight || isDawn)){
     rad *= 2.5;
   }
   ctxNight.save();
@@ -630,6 +635,7 @@ function getCurrentDayTime() {
   if (isAfternoon) return "Après-midi";
   if (isNight) return "Nuit";
   if (isMidnight) return "Minuit";
+  if (isDawn) return "Aube";
   return "Inconnu";
 }
 

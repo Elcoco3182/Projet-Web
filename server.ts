@@ -45,6 +45,26 @@ const roleSelonNbJoueur = [
   "aaapppiiii",
 ];
 
+/*
+const phaseDurations = {
+    isMorning: 30_000,
+    isNoon: 120_000,
+    isAfternoon: 60_000,
+    isNight: 10_000,
+    isMidnight: 45_000,
+    isDawn : 45_000,
+}
+*/
+
+const phaseDurations = {
+  isMorning: 3_000,
+  isNoon: 12_000,
+  isAfternoon: 6_000,
+  isNight: 1_000,
+  isMidnight: 40_500,
+  isDawn: 40_500,
+};
+
 // ==================== CONFIG SERVEUR ====================
 
 const router = new Router();
@@ -58,6 +78,8 @@ let isNoon = false;
 let isAfternoon = true;
 let isNight = false;
 let isMidnight = false;
+let isDawn = false;
+let dayTimeTimeoutId = 0;
 
 let gameState = "noConnected";
 let nbReady = 0;
@@ -71,9 +93,11 @@ import rectangles from "./public/assets/map/polytech.json" with {
 
 const obstacles = setObstacle();
 
+/*
 setInterval(() => {
   switchDayTime();
 }, 4_000); // on switch de phase toute les minutes pour l(instant toute les 1à sec pour des test)
+*/
 
 // ==================== CRÉATION DE LA PARTIE ====================
 
@@ -197,8 +221,9 @@ router.get("/ws", async (ctx) => {
             sendUpdatelobby();
           }
           break;
-        case "kill":
+        case "killFromAssassin":
           await tryKill(playerId, data.targetId);
+          forceSwitchDayTime();
           break;
         case "setReady":
           setReadyPlayer(playerId);
@@ -245,6 +270,7 @@ function getRandomArbitrary(min: number, max: number) {
 async function startGame() {
   await fecthPartiApi();
   await giveRoleAll();
+  switchDayTime();
 }
 
 async function giveRoleAll() {
@@ -424,7 +450,9 @@ function sendUpdatelobby() {
 }
 
 function switchDayTime() {
+  clearTimeout(dayTimeTimeoutId);
   if (gameState == "playing") {
+    let duree = 4000;
     if (isMorning) {
       isMorning = false;
       isNoon = true;
@@ -434,6 +462,7 @@ function switchDayTime() {
           client.send(data);
         }
       });
+      duree = phaseDurations.isNoon;
     } else if (isNoon) {
       isNoon = false;
       isAfternoon = true;
@@ -443,6 +472,7 @@ function switchDayTime() {
           client.send(data);
         }
       });
+      duree = phaseDurations.isAfternoon;
     } else if (isAfternoon) {
       isAfternoon = false;
       isNight = true;
@@ -452,6 +482,7 @@ function switchDayTime() {
           client.send(data);
         }
       });
+      duree = phaseDurations.isNight;
     } else if (isNight) {
       isNight = false;
       isMidnight = true;
@@ -461,8 +492,19 @@ function switchDayTime() {
           client.send(data);
         }
       });
+      duree = phaseDurations.isMidnight;
     } else if (isMidnight) {
       isMidnight = false;
+      isDawn = true;
+      const data = JSON.stringify({ type: "isDawn" });
+      sockets.forEach((client) => {
+        if (client.readyState === 1) {
+          client.send(data);
+        }
+      });
+      duree = phaseDurations.isDawn;
+    } else if (isDawn) {
+      isDawn = false;
       isMorning = true;
       const data = JSON.stringify({ type: "isMorning" });
       sockets.forEach((client) => {
@@ -470,8 +512,20 @@ function switchDayTime() {
           client.send(data);
         }
       });
+      duree = phaseDurations.isMorning;
     }
+
+    dayTimeTimeoutId = setTimeout(() => switchDayTime(), duree);
   }
+}
+
+function forceSwitchDayTime() {
+  if (dayTimeTimeoutId != 0) {
+    clearTimeout(dayTimeTimeoutId);
+    dayTimeTimeoutId = 0;
+  }
+
+  switchDayTime();
 }
 
 async function tryKill(attackerId: string, targetId: string) {
