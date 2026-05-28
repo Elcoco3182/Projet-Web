@@ -12,3 +12,7 @@ docker compose up
 
 // faire les 2
 docker compose up --build
+
+// si carte modifié
+docker compose build --no-cache
+docker compose up --force-recreate
