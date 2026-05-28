@@ -750,7 +750,7 @@ function isEndGame() {
   if (nbPsyco <= 0) {
     return "vicInno";
   }
-  if (nbPsyco >= nbInnocent) {
+  if (nbPsyco > 0 && nbInnocent <= 1) {
     return "vicPsyco";
   }
   return "continue";

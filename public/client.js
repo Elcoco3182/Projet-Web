@@ -263,6 +263,12 @@ function update() {
     if (keys.ArrowUp === true) direction = "up";
     if (keys.ArrowRight === true) direction = "right";
     if (keys.ArrowLeft === true) direction = "left";
+
+    if (joystickInput.up === true ) direction = "up";
+    if (joystickInput.left === true)  direction = "left";
+    if (joystickInput.right === true) direction = "right";
+    if (joystickInput.down === true ) direction = "down";
+
     let data = {
         type: "update",
         x: localJoueur.x,
@@ -440,26 +446,32 @@ function displayGameEndMessage(result) {
     voteOverlay.remove();
   }
 
-  canvas.style.visibility = "visible"; // remet visible avant de faire display:none
+  canvas.style.visibility = "visible";
   canvas.style.display = "none";
+
+  const roleLabel = { assassin: "Assassin", innocent: "Innocent", petitefille: "Petite fille" };
+  const roleColor = { assassin: "#ef5350", innocent: "#4fc3f7", petitefille: "#ce93d8" };
+
+  const winners = players.filter(p => {
+    if (result === "vicInno") return p.type === "innocent" || p.type === "petitefille";
+    if (result === "vicPsyco") return p.type === "assassin";
+    return false;
+  });
 
   const overlay = document.createElement("div");
   overlay.style.cssText = `
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.85);
+    background: rgba(0,0,0,0.88);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     z-index: 1000; font-family: Arial, sans-serif;
   `;
 
   const title = document.createElement("h1");
-  title.style.cssText = "font-size: 48px; margin-bottom: 16px;";
+  title.style.cssText = "font-size: 42px; margin-bottom: 8px;";
 
   const subtitle = document.createElement("p");
-  subtitle.style.cssText = "font-size: 22px; color: #ccc; margin-bottom: 32px;";
-
-  const countdown = document.createElement("p");
-  countdown.style.cssText = "font-size: 16px; color: #888;";
+  subtitle.style.cssText = "font-size: 18px; color: #ccc; margin-bottom: 28px;";
 
   if (result === "vicInno") {
     title.style.color = "#4fc3f7";
@@ -471,12 +483,40 @@ function displayGameEndMessage(result) {
     subtitle.textContent = "Les innocents ont été éliminés.";
   }
 
+  // Cartes des gagnants
+  const winnersBox = document.createElement("div");
+  winnersBox.style.cssText = `
+    display: flex; flex-wrap: wrap; gap: 12px;
+    justify-content: center; margin-bottom: 32px; max-width: 600px;
+  `;
+
+  winners.forEach(p => {
+    const card = document.createElement("div");
+    const color = roleColor[p.type] ?? "#fff";
+    card.style.cssText = `
+      background: rgba(255,255,255,0.07);
+      border: 1px solid ${color}55;
+      border-radius: 10px;
+      padding: 12px 20px;
+      text-align: center;
+      min-width: 100px;
+    `;
+    card.innerHTML = `
+      <p style="font-size:16px; font-weight:bold; color:white; margin:0 0 4px;">${p.username ?? "?"}</p>
+      <p style="font-size:12px; color:${color}; margin:0;">${roleLabel[p.type] ?? p.type}</p>
+    `;
+    winnersBox.appendChild(card);
+  });
+
+  const countdown = document.createElement("p");
+  countdown.style.cssText = "font-size: 14px; color: #666;";
+
   overlay.appendChild(title);
   overlay.appendChild(subtitle);
+  overlay.appendChild(winnersBox);
   overlay.appendChild(countdown);
   document.body.appendChild(overlay);
 
-  // Compte à rebours de 5s puis retour au lobby
   let secondes = 5;
   countdown.textContent = `Retour au lobby dans ${secondes}s…`;
   const timer = setInterval(() => {
@@ -768,10 +808,17 @@ function misAjourSourceY() {
     if (keys.ArrowLeft === true) sy = 64;
     if (keys.ArrowRight === true) sy = 128;
     if (keys.ArrowDown === true) sy = 0;
+
+    //pour le joystick
+    if (joystickInput.up === true ) sy = 192;
+    if (joystickInput.left === true) sy = 64;
+    if (joystickInput.right === true) sy = 128;
+    if (joystickInput.down === true ) sy = 0;
 }
 
 function misAjourAnimationTime() {
-  if (keys.ArrowDown === true || keys.ArrowRight === true || keys.ArrowLeft === true || keys.ArrowUp === true) {
+  if (keys.ArrowDown === true || keys.ArrowRight === true || keys.ArrowLeft === true || keys.ArrowUp === true 
+    || joystickInput.up === true || joystickInput.down === true || joystickInput.left === true || joystickInput.right === true) {
     animationTime += 1;
     if (animationTime > 4) {
       animationTime = 1;
