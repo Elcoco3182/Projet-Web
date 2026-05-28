@@ -185,8 +185,13 @@ socket.onmessage = (event) => {
           mapHeight = data.height;
           break;
         case "isMorning":
+          displayAubeToMatin();
           isDawn = false;
           isMorning = true;
+          break;
+        case "morningSpawn":
+          localJoueur.x = data.x;
+          localJoueur.y = data.y;
           break;
         case "isNoon":
           isMorning = false;
@@ -560,6 +565,202 @@ function displayKilledByVoteMessage(playerId) {
 
   // Stocke le timeout pour pouvoir l'annuler si gameEnd arrive avant
   overlay.dataset.timeout = timeout;
+}
+
+function displayAubeToMatin() {
+  canvas.style.visibility = "hidden";
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed; inset:0; z-index:200; background:#000; overflow:hidden;";
+
+  const cvs = document.createElement("canvas");
+  cvs.style.cssText = "position:absolute; inset:0; width:100%; height:100%;";
+  cvs.width = window.innerWidth;
+  cvs.height = window.innerHeight;
+  overlay.appendChild(cvs);
+
+  const msgBox = document.createElement("div");
+  msgBox.style.cssText = `
+    position:absolute; bottom:22%; width:100%;
+    text-align:center; font-family:Arial,sans-serif; pointer-events:none;
+  `;
+  msgBox.innerHTML = `
+    <div id="_aubeBg" style="display:inline-block; background:rgba(0,0,0,0); padding:10px 32px; border-radius:8px;">
+      <p id="_aubeMsg1" style="font-size:13px; color:rgba(255,210,80,0); letter-spacing:0.12em; margin:0; font-weight:bold; text-shadow:0 1px 8px #000;">UN NOUVEAU JOUR SE LÈVE</p>
+      <p id="_aubeMsg2" style="font-size:24px; color:rgba(255,255,255,0); font-weight:bold; margin:6px 0 0; text-shadow:0 2px 12px rgba(0,0,0,0.9);">Bonne chance...</p>
+    </div>
+  `;
+  overlay.appendChild(msgBox);
+  document.body.appendChild(overlay);
+
+  const c = cvs.getContext("2d");
+  const W = cvs.width, H = cvs.height;
+  const horizonY = H * 0.62;
+  const DURATION = 3500;
+  let startTime = null, animId = null;
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function drawBuilding(progress) {
+    const scale = Math.min(W, H) / 420;
+    const bx = W * 0.5 - 110 * scale;
+    const by = horizonY;
+    const silAlpha = 0.55 + progress * 0.25;
+    const silColor = `rgba(15,12,30,${silAlpha})`;
+
+    c.save();
+    c.translate(bx, by);
+
+    // Corps principal
+    c.fillStyle = silColor;
+    c.fillRect(0, -90*scale, 130*scale, 90*scale);
+    c.fillRect(-40*scale, -55*scale, 44*scale, 55*scale);
+    c.fillRect(-4*scale, -95*scale, 138*scale, 8*scale);
+
+    // Fenêtres allumées
+    c.fillStyle = `rgba(255,220,80,${progress * 0.7})`;
+    for (let i = 0; i < 4; i++) {
+      c.fillRect((10+i*28)*scale, -78*scale, 18*scale, 14*scale);
+      c.fillRect((10+i*28)*scale, -54*scale, 18*scale, 14*scale);
+    }
+
+    // Rotonde
+    c.fillStyle = silColor;
+    c.beginPath();
+    c.arc(175*scale, -65*scale, 42*scale, 0, Math.PI*2);
+    c.fill();
+
+    // Vitrage rotonde
+    c.save();
+    c.beginPath();
+    c.arc(175*scale, -65*scale, 42*scale, 0, Math.PI*2);
+    c.clip();
+    c.fillStyle = `rgba(100,180,255,${progress*0.25})`;
+    c.fillRect(133*scale, -107*scale, 84*scale, 85*scale);
+    c.strokeStyle = `rgba(150,210,255,${progress*0.3})`;
+    c.lineWidth = 1.5;
+    for (let i = 0; i < 5; i++) {
+      c.beginPath();
+      c.moveTo((138+i*10)*scale, -107*scale);
+      c.lineTo((138+i*10)*scale, -22*scale);
+      c.stroke();
+    }
+    c.restore();
+
+    // Liaison + aile droite
+    c.fillStyle = silColor;
+    c.fillRect(128*scale, -85*scale, 10*scale, 85*scale);
+    c.fillRect(213*scale, -45*scale, 55*scale, 45*scale);
+    c.fillRect(265*scale, -30*scale, 30*scale, 30*scale);
+
+    // Végétation
+    c.fillStyle = `rgba(10,30,10,${silAlpha})`;
+    for (let i = 0; i < 8; i++) {
+      c.beginPath();
+      c.arc((i*38-10)*scale, 0, (12+Math.sin(i*1.7)*4)*scale, Math.PI, 0);
+      c.fill();
+    }
+
+    c.restore();
+  }
+
+  function drawFrame(progress) {
+    c.clearRect(0, 0, W, H);
+
+    // Ciel
+    c.fillStyle = `rgb(${Math.round(5+progress*240)},${Math.round(5+progress*145)},${Math.round(20+progress*200)})`;
+    c.fillRect(0, 0, W, H);
+
+    // Lueur orange horizon
+    c.save();
+    c.globalAlpha = progress * 0.6;
+    c.fillStyle = `rgb(255,${Math.round(120+progress*80)},50)`;
+    c.fillRect(0, horizonY - H*0.18, W, H*0.18);
+    c.restore();
+
+    // Sol
+    c.fillStyle = `rgb(${Math.round(8+progress*20)},${Math.round(12+progress*30)},${Math.round(8+progress*15)})`;
+    c.fillRect(0, horizonY, W, H - horizonY);
+
+    // Soleil
+    const sunR = Math.min(W, H) * 0.07;
+    const sunX = W * 0.72;
+    const sunY = (horizonY + sunR*1.5) + ((horizonY - sunR*0.5) - (horizonY + sunR*1.5)) * easeOut(progress);
+
+    c.beginPath();
+    c.arc(sunX, sunY, sunR*(2.5+progress), 0, Math.PI*2);
+    c.fillStyle = `rgba(255,170,40,${progress*0.28})`;
+    c.fill();
+
+    c.save();
+    c.translate(sunX, sunY);
+    c.globalAlpha = progress * 0.55;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i/12)*Math.PI*2 + progress*0.3;
+      c.beginPath();
+      c.moveTo(Math.cos(angle)*(sunR+3), Math.sin(angle)*(sunR+3));
+      c.lineTo(Math.cos(angle)*(sunR+sunR*1.5), Math.sin(angle)*(sunR+sunR*1.5));
+      c.strokeStyle = "rgba(255,220,80,0.8)";
+      c.lineWidth = 2;
+      c.stroke();
+    }
+    c.restore();
+    c.globalAlpha = 1;
+
+    c.beginPath();
+    c.arc(sunX, sunY, sunR, 0, Math.PI*2);
+    c.fillStyle = `rgb(255,${Math.round(190+progress*50)},${Math.round(40+progress*120)})`;
+    c.fill();
+
+    c.save();
+    c.beginPath();
+    c.rect(0, horizonY, W, H-horizonY);
+    c.clip();
+    c.beginPath();
+    c.arc(sunX, sunY, sunR, 0, Math.PI*2);
+    c.fillStyle = `rgb(${Math.round(8+progress*20)},${Math.round(12+progress*30)},${Math.round(8+progress*15)})`;
+    c.fill();
+    c.restore();
+
+    c.strokeStyle = `rgba(255,200,80,${Math.min(1,progress*3)*0.4})`;
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(0, horizonY);
+    c.lineTo(W, horizonY);
+    c.stroke();
+
+    drawBuilding(progress);
+
+    // Textes
+    const bg = document.getElementById("_aubeBg");
+    const m1 = document.getElementById("_aubeMsg1");
+    const m2 = document.getElementById("_aubeMsg2");
+    if (progress > 0.35) {
+      const a = Math.min(1, (progress-0.35)/0.3);
+      m1.style.color = `rgba(255,210,80,${a})`;
+      if (bg) bg.style.background = `rgba(0,0,0,${a*0.5})`;
+    }
+    if (progress > 0.6) {
+      const a = Math.min(1, (progress-0.6)/0.3);
+      if (m2) m2.style.color = `rgba(255,255,255,${a})`;
+    }
+  }
+
+  function animate(ts) {
+    if (!startTime) startTime = ts;
+    const progress = Math.min((ts - startTime) / DURATION, 1);
+    drawFrame(progress);
+    if (progress < 1) {
+      animId = requestAnimationFrame(animate);
+    } else {
+      setTimeout(() => {
+        overlay.remove();
+        canvas.style.visibility = "visible";
+      }, 600);
+    }
+  }
+
+  animId = requestAnimationFrame(animate);
 }
 
 function misAjourSourceY() {

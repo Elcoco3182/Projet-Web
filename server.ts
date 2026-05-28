@@ -55,7 +55,7 @@ const roleSelonNbJoueur = [
 
 /*
 const phaseDurations = {
-    isMorning: 30_000,
+    isMorning: 35_000,
     isNoon: 120_000,
     isAfternoon: 60_000,
     isNight: 10_000,
@@ -65,7 +65,7 @@ const phaseDurations = {
 */
 
 const phaseDurations = {
-  isMorning: 3_000,
+  isMorning: 8_000,
   isNoon: 120_000,
   isAfternoon: 10_000,
   isNight: 10_000,
@@ -622,6 +622,7 @@ function switchDayTime() {
         }
       });
       duree = phaseDurations.isMorning;
+      tpAllJoueurMorning();
     }
 
     dayTimeTimeoutId = setTimeout(() => switchDayTime(), duree);
@@ -683,6 +684,23 @@ function tpAllJoueurNoon() {
         type: "noonSpawn",
         x: spawn[0],
         y: spawn[1],
+      }));
+    }
+  });
+}
+
+function tpAllJoueurMorning() {
+  players.forEach((player, playerId) => {
+    const spawn = getRandomSpawnPoint(2250, 2000, 1300, 1000);
+    player.x = spawn.x;
+    player.y = spawn.y;
+
+    const playerSocket = sockets.get(playerId);
+    if (playerSocket?.readyState === WebSocket.OPEN) {
+      playerSocket.send(JSON.stringify({
+        type: "morningSpawn",
+        x: spawn.x,
+        y: spawn.y,
       }));
     }
   });
