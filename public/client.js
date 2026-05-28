@@ -20,6 +20,7 @@ let isNoon = false;
 let isAfternoon = false;
 let isNight = false;
 let isMidnight = false;
+let isDawn = false;
 
 let isReady = false;
 let rejected = false;
@@ -107,7 +108,7 @@ class Joueur {
         });
 
         if (target && this.canKill()) {
-            socket.send(JSON.stringify({type: "kill", targetId: target.id}));
+            socket.send(JSON.stringify({type: "killFromAssassin", targetId: target.id}));
         }
     }
 }
@@ -184,16 +185,24 @@ socket.onmessage = (event) => {
           mapHeight = data.height;
           break;
         case "isMorning":
-          isMidnight = false;
+          isDawn = false;
           isMorning = true;
           break;
         case "isNoon":
           isMorning = false;
           isNoon = true;
+          document.getElementById("skipBtn").style.display = "block";
+          showVotePanel(players);
+          break;
+        case "noonSpawn":
+          localJoueur.x = data.x;
+          localJoueur.y = data.y;
           break;
         case "isAfternoon":
           isNoon = false;
+          document.getElementById("skipBtn").style.display = "none";
           isAfternoon = true;
+          hideVotePanel();
           break;
         case "isNight":
           isAfternoon = false;
@@ -203,13 +212,17 @@ socket.onmessage = (event) => {
           isNight = false;
           isMidnight = true;
           break;
+        case "isDawn":
+          isMidnight = false;
+          isDawn = true;
+          break;
         case "gameStart":
           setJoueurAttributes(data.role);
           if (data.startX !== undefined && data.startY !== undefined) {
             localJoueur.x = data.startX;
             localJoueur.y = data.startY;
           }
-          document.getElementById("popup").style.display = "none";
+          document.getElementById("readyBtn").style.display = "none";
           document.getElementById("lobbyCount").style.display = "none";
           document.getElementById("dayTime").style.visibility = "visible";
           break;
@@ -220,6 +233,13 @@ socket.onmessage = (event) => {
           break;
         case "gameEnd":
           displayGameEndMessage(data.result);
+          break;
+        case "vote":
+          if (data.draw) {
+            displayExeco(data.tabExeco);
+          } else {
+            displayKilledByVoteMessage(data.player);
+          }
           break;
     }
 };
@@ -301,7 +321,7 @@ function draw() {
 
   drawBorder();
 
-  if (isNight || isMidnight) {
+  if (isNight || isMidnight || isDawn) {
     applyNightMask(ctxNight, screenX, screenY, 150 * cameraZoom);
 
     ctx.save();
@@ -337,8 +357,8 @@ function drawJoueurImage(x, y, player) {
     let localSy = 0;
 
     if (localJoueur.id === player.id) {
-      misAjourSourceY();        // met à jour sy global (direction)
-      localSx = returnSourceX(); // frame d'animation
+      misAjourSourceY();       // met à jour sy global (direction)
+      if (!isNoon) localSx = returnSourceX(); // frame d'animation
       localSy = sy;              // direction courante
     }
     else {
@@ -366,8 +386,17 @@ function drawJoueurImage(x, y, player) {
         case "assassin":
             ctx.drawImage(images["assassin"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
             break;
-        case "innocent":
+        case "petitefille":
+            ctx.drawImage(images["petitefille"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
+            break;
+        default:
             ctx.drawImage(images["innocent"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
+        }
+    } else if (isDawn) {
+        // pour l'instant pas de difference avec isMidnight car on a pas encore de rôle non actif à l'aube
+        switch (player.type) {
+        case "assassin":
+            ctx.drawImage(images["assassin"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
             break;
         case "petitefille":
             ctx.drawImage(images["petitefille"],localSx, localSy, 64, 64, x-32, y-32, 64, 64);
@@ -400,6 +429,13 @@ function drawMap() {
 }
 
 function displayGameEndMessage(result) {
+  const voteOverlay = document.getElementById("voteKillOverlay");
+  if (voteOverlay) {
+    clearTimeout(parseInt(voteOverlay.dataset.timeout));
+    voteOverlay.remove();
+  }
+
+  canvas.style.visibility = "visible"; // remet visible avant de faire display:none
   canvas.style.display = "none";
 
   const overlay = document.createElement("div");
@@ -447,6 +483,83 @@ function displayGameEndMessage(result) {
       countdown.textContent = `Retour au lobby dans ${secondes}s…`;
     }
   }, 1000);
+}
+
+function displayExeco(tabExeco) {
+  // Récupère les usernames depuis la liste players
+  const noms = tabExeco
+    .filter(id => id !== "")
+    .map(id => {
+      const p = players.find(p => p.id === id);
+      return p?.username ?? "?";
+    })
+    .join(" et ");
+
+  canvas.style.visibility = "hidden";
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 200; font-family: Arial, sans-serif;
+    background: rgba(0,0,0,0.55);
+  `;
+
+  overlay.innerHTML = `
+    <p style="font-size:14px; color:#ccc; margin-bottom:8px; letter-spacing:0.05em;">ÉGALITÉ</p>
+    <p style="font-size:22px; color:white; font-weight:bold;">Personne n'est éliminé</p>
+    <p style="font-size:14px; color:#aaa; margin-top:10px;">Le vote était à égalité entre <strong style="color:white">${noms}</strong></p>
+  `;
+
+  document.body.appendChild(overlay);
+  setTimeout(() => {
+    overlay.remove();
+    canvas.style.visibility = "visible";
+  }, 3000);
+}
+
+function displayKilledByVoteMessage(playerId) {
+  const target = players.find(p => p.id === playerId);
+  const nom = target?.username ?? "?";
+  const estMoi = playerId === localJoueur.id;
+
+  canvas.style.visibility = "hidden";
+
+  const overlay = document.createElement("div");
+  overlay.id = "voteKillOverlay";
+  overlay.style.cssText = `
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 200; font-family: Arial, sans-serif;
+    background: rgba(0,0,0,0.55);
+  `;
+
+  if (estMoi) {
+    overlay.innerHTML = `
+      <p style="font-size:14px; color:#ccc; margin-bottom:8px; letter-spacing:0.05em;">ÉLIMINÉ PAR VOTE</p>
+      <p style="font-size:22px; color:#ef5350; font-weight:bold;">Tu as été éliminé</p>
+      <p style="font-size:14px; color:#aaa; margin-top:10px;">Le village a voté contre toi</p>
+    `;
+  } else {
+    overlay.innerHTML = `
+      <p style="font-size:14px; color:#ccc; margin-bottom:8px; letter-spacing:0.05em;">ÉLIMINÉ PAR VOTE</p>
+      <p style="font-size:22px; color:white; font-weight:bold;">${nom} a été éliminé</p>
+      <p style="font-size:14px; color:#aaa; margin-top:10px;">Le village a tranché</p>
+    `;
+  }
+
+  document.body.appendChild(overlay);
+
+  const timeout = setTimeout(() => {
+    overlay.remove();
+    canvas.style.visibility = "visible";
+    if (estMoi) displayKilledMessage();
+  }, 3000);
+
+  // Stocke le timeout pour pouvoir l'annuler si gameEnd arrive avant
+  overlay.dataset.timeout = timeout;
 }
 
 function misAjourSourceY() {
@@ -520,12 +633,13 @@ function gameLoop(timestamp) {
     if (localJoueur.died) return;
     if (socket.readyState !== WebSocket.OPEN) return;
 
-    if (keys.ArrowUp    || joystickInput.up)          localJoueur.moveUp(deltaTime);
-    if (keys.ArrowDown  || joystickInput.down)        localJoueur.moveDown(deltaTime);
-    if (keys.ArrowLeft  || joystickInput.left)        localJoueur.moveLeft(deltaTime);
-    if (keys.ArrowRight || joystickInput.right)       localJoueur.moveRight(deltaTime);
-
-    if (keys.Spacebar   || joystickInput.killBoutton) localJoueur.tryKill();
+    if (!isNoon) {
+      if (keys.ArrowUp    || joystickInput.up)          localJoueur.moveUp(deltaTime);
+      if (keys.ArrowDown  || joystickInput.down)        localJoueur.moveDown(deltaTime);
+      if (keys.ArrowLeft  || joystickInput.left)        localJoueur.moveLeft(deltaTime);
+      if (keys.ArrowRight || joystickInput.right)       localJoueur.moveRight(deltaTime);
+    }
+    if (keys.Spacebar || joystickInput.killBoutton) localJoueur.tryKill();
 
     update();
     draw();
@@ -563,6 +677,56 @@ function sendReady() {
   socket.send(JSON.stringify({type: "setReady"}));
 }
 
+function sendSkip() {
+  wantSkip = true;
+  socket.send(JSON.stringify({type: "skip"}));
+}
+
+let selectedVote = null;
+
+function showVotePanel(playerList) {
+  selectedVote = null;
+  const list = document.getElementById('playerList');
+  list.innerHTML = '';
+  const btn = document.getElementById('voteBtn');
+  btn.disabled = true;
+  btn.textContent = 'Envoyer';
+  btn.classList.remove('sent');
+
+  playerList.forEach(p => {
+    if (p.id === localJoueur.id) return; // on ne vote pas pour soi-même
+    const el = document.createElement('div');
+    el.className = 'player-option';
+    el.innerHTML = `<div class="avatar">${(p.username ?? '?').slice(0,2).toUpperCase()}</div>
+                    <span class="p-name">${p.username ?? '?'}</span>`;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.player-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedVote = p.id;
+      btn.disabled = false;
+    });
+    list.appendChild(el);
+  });
+
+  document.getElementById('votePanel').style.display = 'flex';
+}
+
+function hideVotePanel() {
+  document.getElementById('votePanel').style.display = 'none';
+}
+
+function submitVote() {
+  if (!selectedVote) return;
+  sendVote(selectedVote);
+  document.getElementById('voteBtn').textContent = 'Voté ✓';
+  document.getElementById('voteBtn').classList.add('sent');
+  document.getElementById('voteBtn').disabled = true;
+  document.querySelectorAll('.player-option').forEach(o => o.style.pointerEvents = 'none');
+}
+
+function sendVote(targetId) {
+  socket.send(JSON.stringify({ type: "vote", vote: targetId }));
+}
 
 function displayKilledMessage() {
   localJoueur.died = true;
@@ -597,10 +761,10 @@ function displayErrorMessage(message) {
 
 function applyNightMask(ctxNight, px, py, radius) {
   var rad = radius;
-  if (localJoueur.type === "assassin"){
+  if (localJoueur.type === "assassin" && (isMidnight || isDawn)){
     rad *= 1.7;
   }
-  else if (localJoueur.type === "petitefille"){
+  else if (localJoueur.type === "petitefille" && (isMidnight || isDawn)){
     rad *= 2.5;
   }
   ctxNight.save();
@@ -630,6 +794,7 @@ function getCurrentDayTime() {
   if (isAfternoon) return "Après-midi";
   if (isNight) return "Nuit";
   if (isMidnight) return "Minuit";
+  if (isDawn) return "Aube";
   return "Inconnu";
 }
 
