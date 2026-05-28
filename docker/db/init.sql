@@ -34,7 +34,18 @@ VALUES (1, 'coco', '$2a$12$ZDAQgOpU7bQiTzPLSQZp7u.jvRpPHEXZ/mTRFiDXXHKPDdFLIEN.C
 INSERT INTO roles
 VALUES (1, 'innocent'),
        (2, 'assassin'),
-       (3, 'petitefille');
+       (3, 'petitefille'),
+       (4, 'loupgarou'),
+       (5, 'necrophage'),
+       (6, 'parfumeuse'),
+       (7, 'cuisiniere'),
+       (8, 'cultise'),
+       (9, 'fou'),
+       (10, 'garde'),
+       (11, 'vampire'),
+       (12, 'petitfouineur'),
+       (13, 'solitaire'),
+       (14, 'macavecunfusil');
 
 -- Index sur username pour accélérer les lookups au login
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
