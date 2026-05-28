@@ -28,7 +28,7 @@ CREATE TABLE historiques
 
 -- Données initiales
 INSERT INTO users
-VALUES (1, 'coco', '$2a$12$ZDAQgOpU7bQiTzPLSQZp7u.jvRpPHEXZ/mTRFiDXXHKPDdFLIEN.C'),  -- Hash de 'pasdemail'
+VALUES (1, 'coco', '$2a$12$7PwUKc5RkMuPGaXlbpqxc.2gE1JbljcjvpsOmYkhQvlAYBGgdvfCC'),  -- Hash de 'pasdemail + mon poivre (coco)'
        (2, 'personne', '$2a$12$ZDAQgOpU7bQiTzPLSQZp7u.jvRpPHEXZ/mTRFiDXXHKPDdFLIEN.C');
 
 INSERT INTO roles
