@@ -58,11 +58,11 @@ const phaseDurations = {
 
 const phaseDurations = {
   isMorning: 3_000,
-  isNoon: 12_000,
-  isAfternoon: 6_000,
-  isNight: 1_000,
-  isMidnight: 40_500,
-  isDawn: 4_500,
+  isNoon: 120_000,
+  isAfternoon: 10_000,
+  isNight: 10_000,
+  isMidnight: 45_000,
+  isDawn: 5_000,
 };
 
 // ==================== CONFIG SERVEUR ====================
@@ -83,6 +83,9 @@ let dayTimeTimeoutId = 0;
 
 let gameState = "noConnected";
 let nbReady = 0;
+let nbSkip = 0;
+
+let votes: [string] = [""];
 
 const mapHeight = 1550;
 const mapWidth = 4000;
@@ -92,12 +95,6 @@ import rectangles from "./public/assets/map/polytech.json" with {
 };
 
 const obstacles = setObstacle();
-
-/*
-setInterval(() => {
-  switchDayTime();
-}, 4_000); // on switch de phase toute les minutes pour l(instant toute les 1à sec pour des test)
-*/
 
 // ==================== CRÉATION DE LA PARTIE ====================
 
@@ -233,6 +230,20 @@ router.get("/ws", async (ctx) => {
             startGame();
           }
           break;
+        case "skip":
+          wantSkipPlayer(playerId);
+          if (checkAllWantSkip()) {
+            forceSwitchDayTime();
+            nbSkip = 0;
+          }
+          break;
+        case "vote":
+          votes.push(data.vote);
+          if (votes.length == players.size + 1) {
+            checkVotesComplet();
+            votes = [""];
+            forceSwitchDayTime();
+          }
       }
     } catch (err) {
       console.error("Erreur onmessage :", err);
@@ -412,6 +423,13 @@ function setReadyPlayer(playerId: string) {
   }
 }
 
+function wantSkipPlayer(playerId: string) {
+  const player = players.get(playerId);
+  if (player) {
+    player.skip = true;
+  }
+}
+
 function miseAjourReady() {
   nbReady = 0;
   players.forEach((player) => {
@@ -421,9 +439,88 @@ function miseAjourReady() {
   });
 }
 
+function miseAjourSkip() {
+  nbSkip = 0;
+  players.forEach((player) => {
+    if (player.skip) {
+      nbSkip += 1;
+    }
+  });
+}
+
 function checkAllReady() {
   miseAjourReady();
   return players.size >= 3 && nbReady == players.size;
+}
+
+function checkAllWantSkip() {
+  miseAjourSkip();
+  return nbSkip == players.size;
+}
+
+function checkVotesComplet() {
+  let elimine = "";
+  let nbVotesMax = 0;
+  let nbVotes = 0;
+  let draw = false;
+  let execo: [string] = [""];
+
+  players.forEach((player) => {
+    votes.forEach((vote) => {
+      if (vote == player.id) {
+        nbVotes += 1;
+      }
+    });
+
+    if (nbVotes > nbVotesMax) {
+      nbVotesMax = nbVotes;
+      elimine = player.id;
+      draw = false;
+      execo = [""];
+      execo.push(player.id);
+    } else if (nbVotes === nbVotesMax) {
+      draw = true;
+      execo.push(player.id);
+    }
+    nbVotes = 0;
+  });
+
+  if (draw) {
+    sendVote(draw, execo);
+    return;
+  }
+
+  if (draw) {
+    sendVote(draw, execo);
+    return;
+  }
+
+  sendVote(draw, execo, elimine);
+  players.delete(elimine);
+
+  const result = isEndGame();
+  if (result !== "continue") {
+    broadcastGameEnd(result);
+    closeGame();
+  }
+}
+
+function sendVote(draw: boolean, tabExeco?: [string], player?: string) {
+  if (draw) {
+    const data = JSON.stringify({ type: "vote", tabExeco, draw: draw });
+    sockets.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    });
+  } else {
+    const data = JSON.stringify({ type: "vote", player, draw: draw });
+    sockets.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    });
+  }
 }
 
 function sendKilled(playerId: string) {
@@ -456,13 +553,17 @@ function switchDayTime() {
     if (isMorning) {
       isMorning = false;
       isNoon = true;
-      const data = JSON.stringify({ type: "isNoon" });
+      const data = JSON.stringify({
+        type: "isNoon",
+        players: Array.from(players.values()),
+      });
       sockets.forEach((client) => {
         if (client.readyState === 1) {
           client.send(data);
         }
       });
       duree = phaseDurations.isNoon;
+      tpAllJoueurNoon();
     } else if (isNoon) {
       isNoon = false;
       isAfternoon = true;
@@ -528,34 +629,55 @@ function forceSwitchDayTime() {
   switchDayTime();
 }
 
-function _tpAllJoueurNoon() {
-  const _placeTable = [
-    [1375, 200],
-    [1375, 225],
-    [1375, 250],
+function tpAllJoueurNoon() {
+  const placeTable = [
     [1375, 275],
-    [1375, 300],
-    [1375, 325],
-    [1425, 375],
-    [1450, 375],
-    [1475, 375],
-    [1500, 375],
-    [1525, 375],
-    [1550, 375],
-    [1600, 200],
-    [1600, 225],
-    [1600, 250],
     [1600, 275],
-    [1600, 300],
-    [1600, 325],
-    [1425, 150],
-    [1450, 150],
-    [1475, 150],
+    [1500, 375],
     [1500, 150],
+
+    [1375, 200],
+    [1600, 200],
+    [1425, 375],
+    [1425, 150],
+
+    [1375, 250],
+    [1600, 250],
+    [1475, 150],
+    [1475, 375],
+
+    [1375, 300],
+    [1600, 300],
+    [1525, 375],
     [1525, 150],
+
+    [1375, 225],
+    [1600, 225],
+    [1450, 150],
+    [1450, 375],
+
+    [1375, 325],
+    [1600, 325],
+    [1550, 375],
     [1550, 150],
   ];
-  players.forEach(() => 0);
+
+  let i = 0;
+  players.forEach((player, playerId) => {
+    const spawn = placeTable[i];
+    player.x = spawn[0];
+    player.y = spawn[1];
+    i += 1;
+
+    const playerSocket = sockets.get(playerId);
+    if (playerSocket?.readyState === WebSocket.OPEN) {
+      playerSocket.send(JSON.stringify({
+        type: "noonSpawn",
+        x: spawn[0],
+        y: spawn[1],
+      }));
+    }
+  });
 }
 
 async function tryKill(attackerId: string, targetId: string) {
