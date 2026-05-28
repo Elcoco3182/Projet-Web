@@ -7,14 +7,14 @@ import { secretKey } from "../config.ts";
 export function setAuthCookie(ctx: Context, token: string): void {
   ctx.response.headers.set(
     "Set-Cookie",
-    `auth_token=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`,
+    `auth_token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`,
   );
 }
 
 export function clearAuthCookie(ctx: Context): void {
   ctx.response.headers.set(
     "Set-Cookie",
-    `auth_token=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`,
+    `auth_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`,
   );
 }
 
