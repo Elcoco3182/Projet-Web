@@ -61,17 +61,16 @@ export const roleSelonNbJoueur = [
 
 // ==================== DURÉES DES PHASES ====================
 
-/*
 export const phaseDurations = {
-    isMorning: 35_000,
-    isNoon: 120_000,
-    isAfternoon: 60_000,
-    isNight: 10_000,
-    isMidnight: 45_000,
-    isDawn : 45_000,
-}
-*/
+  isMorning: 35_000,
+  isNoon: 120_000,
+  isAfternoon: 60_000,
+  isNight: 10_000,
+  isMidnight: 45_000,
+  isDawn: 45_000,
+};
 
+/*
 export const phaseDurations = {
   isMorning: 8_000,
   isNoon: 120_000,
@@ -80,6 +79,7 @@ export const phaseDurations = {
   isMidnight: 45_000,
   isDawn: 5_000,
 };
+*/
 
 // ==================== DIMENSIONS DE LA CARTE ====================
 
