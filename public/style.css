@@ -1,7 +1,7 @@
 body {
-  margin: 0;
-  overflow: hidden;
-  touch-action: none;
+    margin: 0;
+    overflow: hidden;
+    touch-action: none;
 }
 
 canvas {
@@ -154,20 +154,70 @@ a {
 }
 
 @media (pointer: coarse) {
-  /* s'affiche seulement si l'écran est tactile */
-  #joystickContainer {
-    display: block;
-  }
+    /* s'affiche seulement si l'écran est tactile */
+    #joystickContainer {
+        display: block;
+    }
 }
 
 #popup {
-  position: fixed;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  z-index: 50;
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 50;
 }
+
+#votePanel {
+    position: fixed;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 160px;
+    background: rgba(255,255,255,0.92);
+    border: 0.5px solid rgba(0,0,0,0.12);
+    border-radius: 10px;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: Arial, sans-serif;
+    z-index: 50;
+}
+.vote-label { font-size: 11px; color: #888; text-align: center; }
+.player-option {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 8px; border-radius: 7px;
+    border: 1px solid transparent;
+    cursor: pointer; background: #f5f5f5;
+}
+.player-option:hover { background: #ececec; }
+.player-option.selected { border-color: #a0c4e8; background: #eaf3fb; }
+.avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #ddd; color: #666;
+    font-size: 10px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+}
+.p-name { font-size: 12px; color: #333; }
+#voteBtn {
+    width: 100%;
+    padding: 6px 0;
+    border-radius: 7px;
+    border: 1px solid #ccc;
+    background: white;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 0;  /* annule le margin-top: 20px du style global button */
+}
+#voteBtn:not(:disabled):not(.sent) {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #b91c1c;
+}
+#voteBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+#voteBtn.sent { background: #eaf5ec; border-color: #a8d5ae; color: #3a7a45; }

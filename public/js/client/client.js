@@ -1,8 +1,8 @@
-import { localJoueur, isMorning, isNoon, isAfternoon, isNight, isMidnight } from "./core/state.js";
+import * as state from "./core/state.js";
 import { preloadImages } from "./render/assets.js";
 import { canvas, initCanvas, updateZoom, draw, tickAnimation } from "./render/renderer.js";
 import { keys, joystickInput } from "./ui/input.js";
-import { socket, sendUpdate, sendReady, initSocketMessages } from "./net/socket.js";
+import { socket, sendUpdate, sendReady, sendSkip, initSocketMessages } from "./net/socket.js";
 import { displayUsername } from "./ui/ui.js";
 
 // ── Initialisation ────────────────────────────────────────────────────────────
@@ -16,17 +16,18 @@ setInterval(tickAnimation, 500);
 // ── Cycle jour/nuit (affichage) ───────────────────────────────────────────────
 
 function getCurrentDayTime() {
-    if (isMorning)   return "Matin";
-    if (isNoon)      return "Midi";
-    if (isAfternoon) return "Après-midi";
-    if (isNight)     return "Nuit";
-    if (isMidnight)  return "Minuit";
+    if (state.isMorning)   return "Matin";
+    if (state.isNoon)      return "Midi";
+    if (state.isAfternoon) return "Après-midi";
+    if (state.isNight)     return "Nuit";
+    if (state.isMidnight)  return "Minuit";
+    if (state.isDawn)      return "Aube";
     return "Inconnu";
 }
 
-// ── Bouton Ready ──────────────────────────────────────────────────────────────
-// Exposé globalement car appelé depuis le HTML (onclick="sendReady()")
-window.sendReady = sendReady;
+// ── Boutons globaux (appelés depuis le HTML) ──────────────────────────────────
+window.sendReady  = sendReady;
+window.sendSkip   = sendSkip;
 
 // ── Boucle de jeu ─────────────────────────────────────────────────────────────
 
@@ -38,16 +39,20 @@ function gameLoop(timestamp) {
     const deltaTime = lastTime === 0 ? 0 : (timestamp - lastTime) / 1000;
     lastTime = timestamp;
 
-    if (!localJoueur || localJoueur.died) return;
+    if (!state.localJoueur || state.localJoueur.died) return;
     if (socket.readyState !== WebSocket.OPEN) return;
 
-    if (keys.ArrowUp    || joystickInput.up)          localJoueur.moveUp(deltaTime);
-    if (keys.ArrowDown  || joystickInput.down)        localJoueur.moveDown(deltaTime);
-    if (keys.ArrowLeft  || joystickInput.left)        localJoueur.moveLeft(deltaTime);
-    if (keys.ArrowRight || joystickInput.right)       localJoueur.moveRight(deltaTime);
-    if (keys.Spacebar   || joystickInput.killBoutton) localJoueur.tryKill(socket);
+    // Déplacements bloqués à midi (phase vote)
+    if (!state.isNoon) {
+        if (keys.ArrowUp    || joystickInput.up)    state.localJoueur.moveUp(deltaTime);
+        if (keys.ArrowDown  || joystickInput.down)  state.localJoueur.moveDown(deltaTime);
+        if (keys.ArrowLeft  || joystickInput.left)  state.localJoueur.moveLeft(deltaTime);
+        if (keys.ArrowRight || joystickInput.right) state.localJoueur.moveRight(deltaTime);
+    }
 
-    sendUpdate(localJoueur, keys);
+    if (keys.Spacebar || joystickInput.killBoutton) state.localJoueur.tryKill(socket);
+
+    sendUpdate(state.localJoueur, keys, joystickInput);
     draw(getCurrentDayTime);
 }
 

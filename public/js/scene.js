@@ -13,7 +13,7 @@ window.addEventListener('resize', resize);
 
 //affichage image de fond
 const bg = new Image();
-bg.src   = 'polytech_night.jpg';
+bg.src   = '../assets/images/polytech_night.jpg';
 
 function drawBackground() {
   if (!bg.complete || bg.naturalWidth === 0) {
