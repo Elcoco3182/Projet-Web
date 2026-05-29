@@ -3,7 +3,7 @@ import { preloadImages } from "./render/assets.js";
 import { canvas, initCanvas, updateZoom, draw, tickAnimation } from "./render/renderer.js";
 import { keys, joystickInput } from "./ui/input.js";
 import { socket, sendUpdate, sendReady, sendSkip, initSocketMessages } from "./net/socket.js";
-import { displayUsername } from "./ui/ui.js";
+import { displayUsername, submitVote } from "./ui/ui.js";
 
 // ── Initialisation ────────────────────────────────────────────────────────────
 
@@ -28,6 +28,7 @@ function getCurrentDayTime() {
 // ── Boutons globaux (appelés depuis le HTML) ──────────────────────────────────
 window.sendReady  = sendReady;
 window.sendSkip   = sendSkip;
+window.clientSubmitVote = submitVote;
 
 // ── Boucle de jeu ─────────────────────────────────────────────────────────────
 

@@ -1,5 +1,6 @@
 import { canvas } from "../render/renderer.js";
 import * as state from "../core/state.js";
+import { socket } from "../net/socket.js";
 
 export function displayKilledMessage() {
     state.localJoueur.died = true;
@@ -127,7 +128,7 @@ export function hideVotePanel() {
     document.getElementById("votePanel").style.display = "none";
 }
 
-export function submitVote(socket) {
+export function submitVote() {
     if (!selectedVote) return;
     socket.send(JSON.stringify({ type: "vote", vote: selectedVote }));
     const btn = document.getElementById("voteBtn");
