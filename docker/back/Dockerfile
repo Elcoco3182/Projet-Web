@@ -8,10 +8,10 @@ COPY . .
 
 RUN chown -R deno:deno /app
 
-RUN deno cache server.ts
+RUN deno cache src/back/server.ts
 
 EXPOSE 3000
 
 USER deno
 
-CMD ["deno", "run", "--no-lock", "--allow-net", "--allow-env", "--watch", "--allow-read=/app", "server.ts"]
+CMD ["deno", "run", "--no-lock", "--allow-net", "--allow-env", "--watch", "--allow-read=/app", "src/back/server.ts"]

@@ -9,26 +9,26 @@
 </head>
 
 <body>
-  <div class ="stats-bar" id ="lobbyCount"></div>
-  <div id="popup">
-    <button id="readyBtn" onclick="sendReady()">Ready ?</button>
-    <button id="skipBtn" onclick="sendSkip()" style="display:none">Skip ?</button>
-  </div>
-  <div class ="stats-bar" id ="dayTime">
-  </div>
-  <div id="votePanel" style="display:none">
-    <p class="vote-label">Voter pour éliminer</p>
-    <div id="playerList"></div>
-    <button id="voteBtn" onclick="submitVote()" disabled>Envoyer</button>
-  </div> 
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+<div class ="stats-bar" id ="lobbyCount"></div>
+<div id="popup">
+  <button id="readyBtn" onclick="sendReady()">Ready ?</button>
+  <button id="skipBtn" onclick="sendSkip()" style="display:none">Skip ?</button>
+</div>
+<div class ="stats-bar" id ="dayTime">
+</div>
+<div id="votePanel" style="display:none">
+  <p class="vote-label">Voter pour éliminer</p>
+  <div id="playerList"></div>
+  <button id="voteBtn" onclick="submitVote()" disabled>Envoyer</button>
+</div>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
 
-  <div id="joystickContainer">
-    <div id="joystick"></div>
-  </div>
-  <button id="killButton" style="display:none">⚔️</button>
+<div id="joystickContainer">
+  <div id="joystick"></div>
+</div>
+<button id="killButton" style="display:none">⚔️</button>
 
-  <script src="client.js"></script>
+<script type="module" src="/js/client/client.js"></script>
 </body>
 
 </html>
