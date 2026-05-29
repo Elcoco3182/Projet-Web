@@ -111,6 +111,11 @@ export function initSocketMessages(onOpen) {
     socket.onerror  = (error) => displayErrorMessage("WebSocket error: " + error.message);
 
     socket.onclose  = (event) => {
+        // code 1006 = connexion refusée / échec réseau (403 avant upgrade)
+        if (event.code === 1006) {
+            displayErrorMessage("Partie pleine ou déjà en cours.");
+            return;
+        }
         import("../core/state.js").then(({ rejected }) => {
             if (rejected)            displayErrorMessage("Partie déjà en cours, vous avez été rejeté");
             else if (event.wasClean) displayErrorMessage("WebSocket connection closed");

@@ -66,6 +66,12 @@ wsRouter.get("/ws", async (ctx) => {
     return;
   }
 
+  if (state.gameState === "playing" || players.size >= 20) {
+    ctx.response.status = 403;
+    ctx.response.body = { error: "Partie pleine ou en cours." };
+    return;
+  }
+
   const ws = ctx.upgrade();
   const playerId = createPlayerId();
   let rejected = false;
