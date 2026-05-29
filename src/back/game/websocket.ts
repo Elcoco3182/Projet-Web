@@ -77,7 +77,7 @@ wsRouter.get("/ws", async (ctx) => {
 
   const spawnPoint = getRandomSpawnPoint(2250, 2000, 1300, 1000);
 
-  if (state.gameState === "lobby") {
+  if (state.gameState === "lobby" && players.size <= 20) {
     sockets.set(playerId, ws);
     players.set(playerId, {
       id: playerId,
@@ -95,9 +95,10 @@ wsRouter.get("/ws", async (ctx) => {
 
   ws.onopen = () => {
     try {
-      if (state.gameState === "playing") {
+      if (state.gameState === "playing" || players.size > 20) {
         rejected = true;
         ws.send(JSON.stringify({ type: "rejected" }));
+        players.delete(playerId);
         ws.close(1008, "Partie en cours");
         return;
       }
