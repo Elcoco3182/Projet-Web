@@ -36,8 +36,12 @@ export const state = {
 };
 
 export let votes: [string] = [""];
-export function resetVotes() { votes = [""]; }
-export function pushVote(v: string) { votes.push(v); }
+export function resetVotes() {
+  votes = [""];
+}
+export function pushVote(v: string) {
+  votes.push(v);
+}
 
 // ==================== CONFIG RÔLES ====================
 
@@ -68,17 +72,16 @@ export const phaseDurations = {
 }
 */
 
-
 export const phaseDurations = {
-  isMorning:   8_000,
-  isNoon:    120_000,
+  isMorning: 8_000,
+  isNoon: 120_000,
   isAfternoon: 10_000,
-  isNight:     10_000,
-  isMidnight:  45_000,
-  isDawn:       5_000,
+  isNight: 10_000,
+  isMidnight: 45_000,
+  isDawn: 5_000,
 };
 
 // ==================== DIMENSIONS DE LA CARTE ====================
 
 export const MAP_HEIGHT = 1550;
-export const MAP_WIDTH  = 4000;
+export const MAP_WIDTH = 4000;
