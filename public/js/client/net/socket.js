@@ -31,7 +31,6 @@ export function initSocketMessages(onOpen) {
         switch (data.type) {
             case "update":
                 state.setPlayers(data.players);
-                state.setObstacles(data.obstacles);
                 break;
             case "lobbyUpdate":
                 document.getElementById("lobbyCount").innerText =
@@ -102,6 +101,9 @@ export function initSocketMessages(onOpen) {
             case "vote":
                 if (data.draw) displayExeco(data.tabExeco);
                 else           displayKilledByVoteMessage(data.player);
+                break;
+            case "obstacles":
+                state.setObstacles(data.obstacles);
                 break;
         }
     };

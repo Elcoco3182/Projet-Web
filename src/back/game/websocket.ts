@@ -40,6 +40,11 @@ export function getCurrentDayTime(): string {
   return "Inconnu";
 }
 
+function sendObstacles(ws: WebSocket): void {
+  if (ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: "obstacles", obstacles }));
+}
+
 wsRouter.get("/ws", async (ctx) => {
   if (!ctx.isUpgradable) {
     ctx.throw(501);
@@ -102,6 +107,7 @@ wsRouter.get("/ws", async (ctx) => {
         ws.close(1008, "Partie en cours");
         return;
       }
+      sendObstacles(ws);
       ws.send(
         JSON.stringify({
           type: "playerId",
@@ -173,11 +179,10 @@ wsRouter.get("/ws", async (ctx) => {
         JSON.stringify({
           type: "update",
           players: Array.from(players.values()),
-          obstacles,
         }),
       );
     } else {
       clearInterval(interval);
     }
-  }, 1000 / 60);
+  } , 1000 / 60); // Diminuer le 60 si lag (60 fps)
 });
