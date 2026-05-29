@@ -31,7 +31,6 @@ export function initSocketMessages(onOpen) {
         switch (data.type) {
             case "update":
                 state.setPlayers(data.players);
-                state.setObstacles(data.obstacles);
                 break;
             case "lobbyUpdate":
                 document.getElementById("lobbyCount").innerText =
@@ -103,12 +102,20 @@ export function initSocketMessages(onOpen) {
                 if (data.draw) displayExeco(data.tabExeco);
                 else           displayKilledByVoteMessage(data.player);
                 break;
+            case "obstacles":
+                state.setObstacles(data.obstacles);
+                break;
         }
     };
 
     socket.onerror  = (error) => displayErrorMessage("WebSocket error: " + error.message);
 
     socket.onclose  = (event) => {
+        // code 1006 = connexion refusée / échec réseau (403 avant upgrade)
+        if (event.code === 1006) {
+            displayErrorMessage("Partie pleine ou déjà en cours.");
+            return;
+        }
         import("../core/state.js").then(({ rejected }) => {
             if (rejected)            displayErrorMessage("Partie déjà en cours, vous avez été rejeté");
             else if (event.wasClean) displayErrorMessage("WebSocket connection closed");
