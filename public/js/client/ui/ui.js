@@ -90,7 +90,7 @@ export async function displayUsername() {
 export function setJoueurAttributes(localJoueurRef, role) {
     if (!localJoueurRef) return;
     localJoueurRef.type  = role;
-    localJoueurRef.speed = 8;
+    localJoueurRef.speed = 5;
     if (role === "assassin" && "ontouchstart" in window)
         document.getElementById("killButton").style.display = "block";
     if ("ontouchstart" in window)
