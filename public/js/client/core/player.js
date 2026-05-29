@@ -7,7 +7,7 @@ export class Joueur {
         this.x     = x;
         this.y     = y;
         this.died  = false;
-        this.speed = 8;
+        this.speed = 4;
     }
 
     moveUp(dt) {
