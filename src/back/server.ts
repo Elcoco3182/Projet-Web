@@ -3,7 +3,6 @@ import { oakCors } from "@deno.land/x/cors";
 import { PORT } from "./config.ts";
 import { authRouter } from "./auth/routes.ts";
 import { wsRouter } from "./game/websocket.ts";
-import { switchDayTime } from "./game/logic.ts";
 
 const app = new Application();
 
@@ -13,9 +12,6 @@ healthRouter.get("/health", (ctx) => {
   ctx.response.status = 200;
   ctx.response.body = "ok";
 });
-
-// ── Cycle jour/nuit ───────────────────────────────────────────────────────────
-setInterval(switchDayTime, 4_000);
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",");
