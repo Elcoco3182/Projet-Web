@@ -1,14 +1,6 @@
-import {
-    WORLD_VIEW_WIDTH, WORLD_VIEW_HEIGHT,
-    players, obstacles, localJoueur,
-    mapWidth, mapHeight,
-    cameraZoom, setCameraZoom,
-    animationTime, setAnimationTime,
-    sy, setSy,
-    isMidnight, isNight, isAfternoon,
-} from "../core/state.js";
+import * as state from "../core/state.js";
 import { images } from "./assets.js";
-import { keys } from "../ui/input.js";
+import { keys, joystickInput } from "../ui/input.js";
 
 export const canvas      = document.getElementById("gameCanvas");
 export const ctx         = canvas.getContext("2d");
@@ -29,102 +21,116 @@ export function initCanvas() {
 }
 
 export function updateZoom() {
-    const zoomX = viewportWidth  / WORLD_VIEW_WIDTH;
-    const zoomY = viewportHeight / WORLD_VIEW_HEIGHT;
-    setCameraZoom(Math.min(zoomX, zoomY));
+    const zoomX = viewportWidth  / state.WORLD_VIEW_WIDTH;
+    const zoomY = viewportHeight / state.WORLD_VIEW_HEIGHT;
+    state.setCameraZoom(Math.min(zoomX, zoomY));
 }
-
-// ── Boucle de rendu principale ────────────────────────────────────────────────
 
 export function draw(getCurrentDayTime) {
     document.getElementById("dayTime").innerText = getCurrentDayTime();
 
-    const renderOffsetX = (viewportWidth  - WORLD_VIEW_WIDTH  * cameraZoom) / 2;
-    const renderOffsetY = (viewportHeight - WORLD_VIEW_HEIGHT * cameraZoom) / 2;
+    const renderOffsetX = (viewportWidth  - state.WORLD_VIEW_WIDTH  * state.cameraZoom) / 2;
+    const renderOffsetY = (viewportHeight - state.WORLD_VIEW_HEIGHT * state.cameraZoom) / 2;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, viewportWidth, viewportHeight);
     ctx.fillStyle = "gray";
-    ctx.fillRect(renderOffsetX, renderOffsetY, WORLD_VIEW_WIDTH * cameraZoom, WORLD_VIEW_HEIGHT * cameraZoom);
+    ctx.fillRect(renderOffsetX, renderOffsetY, state.WORLD_VIEW_WIDTH * state.cameraZoom, state.WORLD_VIEW_HEIGHT * state.cameraZoom);
 
-    const currentPlayer = players.find((p) => p.id === localJoueur.id);
+    const currentPlayer = state.players.find((p) => p.id === state.localJoueur.id);
     if (!currentPlayer) return;
 
-    const offsetX = Math.min(Math.max(currentPlayer.x - WORLD_VIEW_WIDTH  / 2, 0), Math.max(mapWidth  - WORLD_VIEW_WIDTH,  0));
-    const offsetY = Math.min(Math.max(currentPlayer.y - WORLD_VIEW_HEIGHT / 2, 0), Math.max(mapHeight - WORLD_VIEW_HEIGHT, 0));
-    const screenX = (currentPlayer.x - offsetX) * cameraZoom + renderOffsetX;
-    const screenY = (currentPlayer.y - offsetY) * cameraZoom + renderOffsetY;
+    const offsetX = Math.min(Math.max(currentPlayer.x - state.WORLD_VIEW_WIDTH  / 2, 0), Math.max(state.mapWidth  - state.WORLD_VIEW_WIDTH,  0));
+    const offsetY = Math.min(Math.max(currentPlayer.y - state.WORLD_VIEW_HEIGHT / 2, 0), Math.max(state.mapHeight - state.WORLD_VIEW_HEIGHT, 0));
+    const screenX = (currentPlayer.x - offsetX) * state.cameraZoom + renderOffsetX;
+    const screenY = (currentPlayer.y - offsetY) * state.cameraZoom + renderOffsetY;
 
     ctx.save();
     ctx.translate(renderOffsetX, renderOffsetY);
     ctx.beginPath();
-    ctx.rect(0, 0, WORLD_VIEW_WIDTH * cameraZoom, WORLD_VIEW_HEIGHT * cameraZoom);
+    ctx.rect(0, 0, state.WORLD_VIEW_WIDTH * state.cameraZoom, state.WORLD_VIEW_HEIGHT * state.cameraZoom);
     ctx.clip();
-    ctx.scale(cameraZoom, cameraZoom);
+    ctx.scale(state.cameraZoom, state.cameraZoom);
     ctx.translate(-offsetX, -offsetY);
 
-    obstacles.forEach((o) => drawObstacle(o.x, o.y, o.width, o.height));
+    state.obstacles.forEach((o) => drawObstacle(o.x, o.y, o.width, o.height));
     drawMap();
-    players.forEach((p) => drawJoueurImage(p.x, p.y, p));
+    state.players.forEach((p) => drawJoueurImage(p.x, p.y, p));
 
     ctx.restore();
     drawBorder(renderOffsetX, renderOffsetY);
 
-    if (isNight || isMidnight) {
-        applyNightMask(screenX, screenY, 150 * cameraZoom);
+    if (state.isNight || state.isMidnight || state.isDawn) {
+        applyNightMask(screenX, screenY, 150 * state.cameraZoom);
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.beginPath();
-        ctx.rect(renderOffsetX, renderOffsetY, WORLD_VIEW_WIDTH * cameraZoom, WORLD_VIEW_HEIGHT * cameraZoom);
+        ctx.rect(renderOffsetX, renderOffsetY, state.WORLD_VIEW_WIDTH * state.cameraZoom, state.WORLD_VIEW_HEIGHT * state.cameraZoom);
         ctx.clip();
         ctx.drawImage(canvasNight, 0, 0);
         ctx.restore();
     }
 }
 
-// ── Sous-fonctions de rendu ───────────────────────────────────────────────────
+// ── Sous-fonctions ────────────────────────────────────────────────────────────
 
 function misAjourSourceY() {
-    if (keys.ArrowUp)    setSy(192);
-    if (keys.ArrowLeft)  setSy(64);
-    if (keys.ArrowRight) setSy(128);
-    if (keys.ArrowDown)  setSy(0);
+    if (keys.ArrowUp)    state.setSy(192);
+    if (keys.ArrowLeft)  state.setSy(64);
+    if (keys.ArrowRight) state.setSy(128);
+    if (keys.ArrowDown)  state.setSy(0);
+    if (joystickInput.up)    state.setSy(192);
+    if (joystickInput.left)  state.setSy(64);
+    if (joystickInput.right) state.setSy(128);
+    if (joystickInput.down)  state.setSy(0);
 }
 
 function updateAnimationTime() {
-    const moving = keys.ArrowDown || keys.ArrowRight || keys.ArrowLeft || keys.ArrowUp;
+    const moving = keys.ArrowDown || keys.ArrowRight || keys.ArrowLeft || keys.ArrowUp
+        || joystickInput.up || joystickInput.down || joystickInput.left || joystickInput.right;
     if (moving) {
-        setAnimationTime(animationTime >= 4 ? 1 : animationTime + 1);
+        state.setAnimationTime(state.animationTime >= 4 ? 1 : state.animationTime + 1);
     } else {
-        setAnimationTime(1);
+        state.setAnimationTime(1);
     }
 }
 
 function returnSourceX() {
-    return (animationTime - 1) * 64;
+    return (state.animationTime - 1) * 64;
 }
 
 function drawJoueurImage(x, y, player) {
     let localSx = 0;
     let localSy;
 
-    if (localJoueur.id === player.id) {
+    if (state.localJoueur.id === player.id) {
         misAjourSourceY();
-        localSx = returnSourceX();
-        localSy = sy;
+        if (!state.isNoon) localSx = returnSourceX(); // animation figée à midi
+        localSy = state.sy;
     } else {
         const dirMap = { down: 0, left: 64, right: 128, up: 192 };
         localSy = dirMap[player.d] ?? 0;
     }
 
     ctx.save();
-    if (isMidnight) {
-        const sprite = images[player.type] ?? images["innocent"];
-        ctx.drawImage(sprite, localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+
+    if (state.isMidnight || state.isDawn) {
+        // La nuit et à l'aube : on voit les rôles
+        switch (player.type) {
+            case "assassin":
+                ctx.drawImage(images["assassin"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+                break;
+            case "petitefille":
+                ctx.drawImage(images["petitefille"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+                break;
+            default:
+                ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+        }
     } else {
+        // Jour : tout le monde apparaît innocent
         ctx.drawImage(images["innocent"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
-        if (!isNight) {
+        if (!state.isNight) {
             ctx.font = "12px Arial";
             ctx.textAlign = "center";
             ctx.fillStyle = "white";
@@ -133,6 +139,7 @@ function drawJoueurImage(x, y, player) {
             ctx.fillText(player.username ?? "?", x + 1, y + 43);
         }
     }
+
     ctx.restore();
 }
 
@@ -148,8 +155,8 @@ function drawObstacle(x, y, width, height) {
 }
 
 function drawBorder(renderOffsetX, renderOffsetY) {
-    const w = WORLD_VIEW_WIDTH  * cameraZoom;
-    const h = WORLD_VIEW_HEIGHT * cameraZoom;
+    const w = state.WORLD_VIEW_WIDTH  * state.cameraZoom;
+    const h = state.WORLD_VIEW_HEIGHT * state.cameraZoom;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "black";
@@ -162,8 +169,9 @@ function drawBorder(renderOffsetX, renderOffsetY) {
 
 function applyNightMask(px, py, radius) {
     let rad = radius;
-    if (localJoueur.type === "assassin")   rad *= 1.7;
-    else if (localJoueur.type === "petitefille") rad *= 2.5;
+    // Rayon étendu uniquement pendant minuit et l'aube
+    if (state.localJoueur.type === "assassin"   && (state.isMidnight || state.isDawn)) rad *= 1.7;
+    if (state.localJoueur.type === "petitefille" && (state.isMidnight || state.isDawn)) rad *= 2.5;
 
     ctxNight.save();
     ctxNight.clearRect(0, 0, canvasNight.width, canvasNight.height);
@@ -180,7 +188,6 @@ function applyNightMask(px, py, radius) {
     ctxNight.restore();
 }
 
-// ── Animation tick (appelé via setInterval) ───────────────────────────────────
 export function tickAnimation() {
     updateAnimationTime();
 }

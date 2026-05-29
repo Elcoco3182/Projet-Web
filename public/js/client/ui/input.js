@@ -1,4 +1,4 @@
-import { localJoueur } from "../core/state.js";
+import * as state from "../core/state.js";
 
 export const keys = {
     ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, Spacebar: false,
@@ -9,7 +9,7 @@ export const joystickInput = {
 };
 
 document.addEventListener("keydown", (e) => {
-    if (!localJoueur) return;
+    if (!state.localJoueur) return;
     if (Object.hasOwn(keys, e.key)) keys[e.key] = true;
     if (e.key === " ") keys.Spacebar = true;
 });
@@ -25,13 +25,11 @@ const joystickContainer = document.getElementById("joystickContainer");
 const joystick          = document.getElementById("joystick");
 const killButton        = document.getElementById("killButton");
 
-let touchStartX = 0;
-let touchStartY = 0;
-let isTouching  = false;
+let touchStartX = 0, touchStartY = 0, isTouching = false;
 
 joystickContainer.addEventListener("touchstart", (event) => {
     event.preventDefault();
-    isTouching  = true;
+    isTouching = true;
     touchStartX = event.touches[0].clientX;
     touchStartY = event.touches[0].clientY;
 });
@@ -39,22 +37,14 @@ joystickContainer.addEventListener("touchstart", (event) => {
 joystickContainer.addEventListener("touchmove", (event) => {
     event.preventDefault();
     if (!isTouching) return;
-
     const deltaX = event.touches[0].clientX - touchStartX;
     const deltaY = event.touches[0].clientY - touchStartY;
-
     joystick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
 
-    const angle = Math.atan2(
-        deltaY / Math.sqrt(deltaX * deltaX + deltaY * deltaY),
-        deltaX / Math.sqrt(deltaX * deltaX + deltaY * deltaY),
-    ) * (180 / Math.PI);
+    const len = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const angle = Math.atan2(deltaY / len, deltaX / len) * (180 / Math.PI);
 
-    joystickInput.up    = false;
-    joystickInput.down  = false;
-    joystickInput.left  = false;
-    joystickInput.right = false;
-
+    joystickInput.up = joystickInput.down = joystickInput.left = joystickInput.right = false;
     if      (angle >= -45  && angle <=  45)  joystickInput.right = true;
     else if (angle >   45  && angle <  135)  joystickInput.down  = true;
     else if (angle >=  135 || angle <= -135) joystickInput.left  = true;
@@ -67,5 +57,5 @@ joystickContainer.addEventListener("touchend", () => {
     joystick.style.transform = "translate(-50%, -50%)";
 });
 
-killButton.addEventListener("touchstart", (event) => { joystickInput.killBoutton = true;  event.preventDefault(); });
-killButton.addEventListener("touchend",   (event) => { joystickInput.killBoutton = false; event.preventDefault(); });
+killButton.addEventListener("touchstart", (e) => { joystickInput.killBoutton = true;  e.preventDefault(); });
+killButton.addEventListener("touchend",   (e) => { joystickInput.killBoutton = false; e.preventDefault(); });

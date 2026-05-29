@@ -2,7 +2,8 @@ import { Application, Router } from "@oak/oak";
 import { oakCors } from "@deno.land/x/cors";
 import { PORT } from "./config.ts";
 import { authRouter } from "./auth/routes.ts";
-import { switchDayTime, wsRouter } from "./game/websocket.ts";
+import { wsRouter } from "./game/websocket.ts";
+import { switchDayTime } from "./game/logic.ts";
 
 const app = new Application();
 
