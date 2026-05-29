@@ -190,5 +190,5 @@ wsRouter.get("/ws", async (ctx) => {
     } else {
       clearInterval(interval);
     }
-  } , 1000 / 60); // Diminuer le 60 si lag (60 fps)
+  }, 1000 / 60); // Diminuer le 60 si lag (60 fps)
 });
