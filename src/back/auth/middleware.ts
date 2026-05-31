@@ -2,12 +2,30 @@ import { Context } from "@oak/oak";
 import { verify } from "@zaubrik/djwt";
 import { secretKey } from "../config.ts";
 
-// ==================== COOKIES ====================
+// ==================== HASH HELPER ============================================
+// Utilisé pour hasher les refresh tokens avant stockage/comparaison en base.
+// On ne stocke pas le token brut les tokens sont inutilisables sans les valeurs originales.
+
+export async function hashToken(raw: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(raw),
+  );
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// ==================== ACCESS TOKEN COOKIES ====================
+//durrée de 15 min
+//le refresh token prend le relais pour renouveler
 
 export function setAuthCookie(ctx: Context, token: string): void {
   ctx.response.headers.set(
     "Set-Cookie",
-    `auth_token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`,
+    // MODIFIÉ : Max-Age 86400 (24h) → 900 (15 min)
+    // L'access token est maintenant court. Le refresh token gère la durée longue.
+    `auth_token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=900`,
   );
 }
 
@@ -25,6 +43,35 @@ export function getTokenFromCookie(ctx: Context): string | null {
   );
   return match ? match.split("=")[1] : null;
 }
+// ==================== REFRESH TOKEN COOKIE ===================================
+// Durée : 30 jours (2 592 000 secondes)
+// Stocké en base sous forme hashée — ce cookie contient la valeur BRUTE.
+
+export function setRefreshTokenCookie(ctx: Context, token: string): void {
+  ctx.response.headers.append(
+    "Set-Cookie",
+    `refresh_token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000`,
+  );
+}
+
+export function clearRefreshTokenCookie(ctx: Context): void {
+  ctx.response.headers.append(
+    "Set-Cookie",
+    `refresh_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`,
+  );
+}
+
+export function getRefreshTokenFromCookie(ctx: Context): string | null {
+  const cookie = ctx.request.headers.get("cookie") ?? "";
+  const match = cookie.split("; ").find((row: string) =>
+    row.startsWith("refresh_token=")
+  );
+  return match ? match.split("=")[1] : null;
+}
+
+// ==================== MIDDLEWARE D'AUTHENTIFICATION ==========================
+// Vérifie l'access token sur les routes protégées.
+// Si expiré → redirige vers /login.html (le navigateur tentera un /refresh avant).
 
 export async function requireAuth(ctx: Context, next: () => Promise<unknown>) {
   const token = getTokenFromCookie(ctx);
