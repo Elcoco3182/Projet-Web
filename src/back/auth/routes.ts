@@ -6,13 +6,39 @@ import { API_URL, fetchWithRetry } from "../utils/fetch.ts";
 import { validatePassword, validateUsername } from "./validation.ts";
 import {
   clearAuthCookie,
+  clearRefreshTokenCookie,
+  getRefreshTokenFromCookie,
   getTokenFromCookie,
+  hashToken,
   isRateLimited,
   requireAuth,
   setAuthCookie,
+  setRefreshTokenCookie,
 } from "./middleware.ts";
 
 export const authRouter = new Router();
+
+// ── Helper : génère un refresh token brut aléatoire ──────────────────────────
+
+function generateRawRefreshToken(): string {
+  return crypto.randomUUID() + crypto.randomUUID();
+}
+
+// ── Helper : stocke le refresh token hashé en base via l'API ─────────────────
+async function storeRefreshToken(
+  userId: number,
+  rawToken: string,
+): Promise<void> {
+  const tokenHash = await hashToken(rawToken);
+  await fetchWithRetry(`${API_URL}/refresh-tokens`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: userId,
+      token_hash: tokenHash,
+    }),
+  });
+}
 
 // ── POST /register ────────────────────────────────────────────────────────────
 authRouter.post("/register", async (ctx) => {
@@ -69,12 +95,22 @@ authRouter.post("/register", async (ctx) => {
     return;
   }
 
+  // Récupérer l'id du nouvel utilisateur pour lier le refresh token
+  const newUser = await res.json() as { id: number; username: string };
+
+  // Access token (15 min)
   const token = await create(
     { alg: "HS512", typ: "JWT" },
     { username },
     secretKey,
   );
   setAuthCookie(ctx, token);
+
+  // rajout Refresh token (30 jours) — généré, stocké hashé en base, posé en cookie
+  const rawRefreshToken = generateRawRefreshToken();
+  await storeRefreshToken(newUser.id, rawRefreshToken);
+  setRefreshTokenCookie(ctx, rawRefreshToken);
+
   ctx.response.status = 201;
   ctx.response.body = { message: "Compte créé avec succès.", username };
 });
@@ -139,10 +175,17 @@ authRouter.post("/login", async (ctx) => {
     return;
   }
 
+  // Access token (15 min)
   const token = await create({ alg: "HS512", typ: "JWT" }, {
     username: fetchedUsername,
   }, secretKey);
   setAuthCookie(ctx, token);
+
+  // rjout du refresh token (30 jours)
+  const rawRefreshToken = generateRawRefreshToken();
+  await storeRefreshToken(fetchedUser.id, rawRefreshToken);
+  setRefreshTokenCookie(ctx, rawRefreshToken);
+
   ctx.response.status = 200;
   ctx.response.body = {
     message: "Connexion réussie.",
@@ -150,9 +193,78 @@ authRouter.post("/login", async (ctx) => {
   };
 });
 
+// ── POST /refresh ─────────────────────────────────────────────────────────────
+// Appelé automatiquement par le navigateur quand l'access token expire (15 min).
+// Vérifie le refresh token en base → génère un nouvel access token.
+authRouter.post("/refresh", async (ctx) => {
+  const rawToken = getRefreshTokenFromCookie(ctx);
+
+  if (!rawToken) {
+    ctx.response.status = 401;
+    ctx.response.body = { error: "Session expirée. Reconnectez-vous." };
+    return;
+  }
+
+  // Hasher le token reçu pour chercher en base
+  const tokenHash = await hashToken(rawToken);
+
+  let tokenRes: Response | null = null;
+  try {
+    tokenRes = await fetchWithRetry(
+      `${API_URL}/refresh-tokens/${encodeURIComponent(tokenHash)}`,
+    );
+  } catch {
+    ctx.response.status = 503;
+    ctx.response.body = { error: "Service indisponible." };
+    return;
+  }
+
+  if (!tokenRes?.ok) {
+    // Token introuvable ou expiré → forcer la reconnexion
+    clearAuthCookie(ctx);
+    clearRefreshTokenCookie(ctx);
+    ctx.response.status = 401;
+    ctx.response.body = { error: "Session expirée. Reconnectez-vous." };
+    return;
+  }
+
+  const tokenData = await tokenRes.json() as { username: string };
+
+  // Nouveau access token (15 min)
+  const newAccessToken = await create(
+    { alg: "HS512", typ: "JWT" },
+    { username: tokenData.username },
+    secretKey,
+  );
+  setAuthCookie(ctx, newAccessToken);
+
+  ctx.response.status = 200;
+  ctx.response.body = { message: "Token renouvelé." };
+});
+
 // ── POST /logout ──────────────────────────────────────────────────────────────
-authRouter.post("/logout", (ctx) => {
+authRouter.post("/logout", async (ctx) => {
+  const rawToken = getRefreshTokenFromCookie(ctx);
+
+  // MODIFIÉ : on supprime le refresh token de la base avant de vider les cookies
+  // Sinon le token reste valide en base même si les cookies supprimé
+  if (rawToken) {
+    const tokenHash = await hashToken(rawToken);
+    try {
+      await fetchWithRetry(
+        `${API_URL}/refresh-tokens/${encodeURIComponent(tokenHash)}`,
+        { method: "DELETE" },
+      );
+    } catch {
+      // On continue même si l'API est down — les cookies seront quand même supprimés
+      console.warn(
+        "Logout : impossible de supprimer le refresh token en base.",
+      );
+    }
+  }
+
   clearAuthCookie(ctx);
+  clearRefreshTokenCookie(ctx); // AJOUTÉ
   ctx.response.status = 200;
   ctx.response.body = { message: "Déconnexion réussie." };
 });

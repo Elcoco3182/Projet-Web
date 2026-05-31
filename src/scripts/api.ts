@@ -235,6 +235,79 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows[0], { status: 201 });
     }
 
+    // ==================== REFRESH TOKENS ====================
+    // 3 routes sont appelées par routes.ts (back).
+    // Elles ne sont jamais accessibles depuis le navigateur (api sur réseau interne Docker)
+
+    // POST /refresh-tokens  { user_id, token_hash }
+    // Appelé par routes.ts après un login ou register réussi
+    // Stocke le hash SHA-256 du refresh token avec une expiration de 30 jours.
+    if (req.method === "POST" && url.pathname === "/refresh-tokens") {
+      const body = await req.json();
+      const { user_id, token_hash } = body;
+
+      if (!user_id || typeof user_id !== "number") {
+        return Response.json({ error: "user_id invalide" }, { status: 400 });
+      }
+      if (!token_hash || typeof token_hash !== "string") {
+        return Response.json({ error: "token_hash manquant" }, { status: 400 });
+      }
+
+      const rows = await query<{ id: number }>(
+        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+         VALUES ($1, $2, NOW() + INTERVAL '30 days')
+         RETURNING id`,
+        [user_id, token_hash],
+      );
+      return Response.json(rows[0], { status: 201 });
+    }
+
+    // GET /refresh-tokens/:tokenHash
+    // Appelé par routes.ts sur POST /refresh.
+    // Vérifie que le token existe et n'est pas expiré.
+    // Retourne le username associé pour générer un nouvel access token.
+    if (
+      req.method === "GET" &&
+      url.pathname.match(/^\/refresh-tokens\/[^/]+$/)
+    ) {
+      const tokenHash = decodeURIComponent(url.pathname.split("/")[2]);
+
+      const rows = await query<{ username: string }>(
+        `SELECT u.username
+         FROM refresh_tokens rt
+         JOIN users u ON rt.user_id = u.id
+         WHERE rt.token_hash = $1
+           AND rt.expires_at > NOW()`,
+        [tokenHash],
+      );
+
+      if (rows.length === 0) {
+        // Token introuvable ou expiré
+        return Response.json(
+          { error: "Refresh token invalide ou expiré" },
+          { status: 404 },
+        );
+      }
+      return Response.json(rows[0]);
+    }
+
+    // DELETE /refresh-tokens/:tokenHash
+    // Appelé par routes.ts sur POST /logout.
+    // Supprime le token de la base
+    if (
+      req.method === "DELETE" &&
+      url.pathname.match(/^\/refresh-tokens\/[^/]+$/)
+    ) {
+      const tokenHash = decodeURIComponent(url.pathname.split("/")[2]);
+
+      await query(
+        "DELETE FROM refresh_tokens WHERE token_hash = $1",
+        [tokenHash],
+      );
+      // On retourne 200 même si le token n'existait pas — le résultat est le même
+      return Response.json({ message: "Refresh token supprimé." });
+    }
+
     return Response.json({ error: "Not found" }, { status: 404 });
   } catch (err) {
     console.error(err);
