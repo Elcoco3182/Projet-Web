@@ -85,7 +85,7 @@ export const roleSelonNbJoueur = [
 // ==================== DURÉES DES PHASES ====================
 
 export const phaseDurations = {
-  isMorning: 15_000,
+  isMorning: 20_000,
   isNoon: 120_000,
   isAfternoon: 60_000,
   isNight: 15_000,
