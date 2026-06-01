@@ -37,7 +37,7 @@ services:
     healthcheck:
       test: [
         "CMD-SHELL",
-        "deno eval --no-lock --unsafely-ignore-certificate-errors \"await fetch('https://localhost:3000/health').then(r => r.ok ? Deno.exit(0) : Deno.exit(1)).catch(() => Deno.exit(1))\"",
+        "deno eval --unsafely-ignore-certificate-errors \"await fetch('https://localhost:3000/health').then(r => r.ok ? Deno.exit(0) : Deno.exit(1)).catch(() => Deno.exit(1))\"",
       ]
       interval: 5s
       timeout: 10s

@@ -9,7 +9,7 @@ COPY src/ ./src/
 COPY public/ ./public/
 
 RUN deno cache src/back/server.ts \
-  && chmod -R 777 /tmp/deno-cache
+  && chmod -R 755 /tmp/deno-cache
 
 # Stage 2 : runtime
 FROM denoland/deno:alpine-2.5.0
@@ -28,4 +28,4 @@ RUN chown -R deno:deno /app /tmp/deno-cache
 EXPOSE 3000
 USER deno
 
-CMD ["deno", "run", "--no-lock", "--allow-net", "--allow-env", "--allow-read=/app", "src/back/server.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read=/app", "src/back/server.ts"]
