@@ -156,7 +156,7 @@ async function giveRoleAll() {
       }),
     });
 
-    const spawn = getRandomSpawnPoint(2250, 2000, 1300, 1000);
+    const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     activatePlayer(playerId, role, spawn);
     const playerSocket = sockets.get(playerId);
     if (playerSocket?.readyState === WebSocket.OPEN) {
@@ -275,7 +275,7 @@ function tpAllJoueurNoon() {
 
 function tpAllJoueurMorning() {
   players.forEach((player, playerId) => {
-    const spawn = getRandomSpawnPoint(2250, 2000, 1300, 1000);
+    const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;
     sockets.get(playerId)?.send(
@@ -428,7 +428,7 @@ export function resetToLobby() {
     player.active = false;
     player.type = undefined;
     player.skip = false;
-    const spawn = getRandomSpawnPoint(2250, 2000, 1300, 1000);
+    const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;
   });

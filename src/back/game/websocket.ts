@@ -86,7 +86,7 @@ wsRouter.get("/ws", async (ctx) => {
 
   if (state.gameState === "noConnected") state.gameState = "lobby";
 
-  const spawnPoint = getRandomSpawnPoint(2250, 2000, 1300, 1000);
+  const spawnPoint = getRandomSpawnPoint(2600, 2000, 750, 600);
 
   if (state.gameState === "lobby" && players.size <= 20) {
     sockets.set(playerId, ws);
