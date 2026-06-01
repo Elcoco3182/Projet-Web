@@ -37,7 +37,7 @@ export class Joueur {
 
     canParfume() {
         state.players.forEach((player) => {
-            if (player.isParfume = true) return false;
+            if (player.isParfume) return false;
         })
     }
 
@@ -61,7 +61,7 @@ export class Joueur {
             return Math.sqrt(dx * dx + dy * dy) < 80;
         });
         if (target && this.canParfume()) {
-            target.isParfume = true;
+            state.players[target].isParfume = true;
         }
     }
 }

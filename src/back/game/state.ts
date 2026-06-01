@@ -61,7 +61,7 @@ export const roleSelonNbJoueur = [
   "",
   "",
   "",
-  "api",
+  "aPi",
   "apii",
   "apiii",
   "apiiii",

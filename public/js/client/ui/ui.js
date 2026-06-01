@@ -94,6 +94,8 @@ export function setJoueurAttributes(localJoueurRef, role) {
     localJoueurRef.speed = 5;
     if (role === "assassin" && "ontouchstart" in window)
         document.getElementById("killButton").style.display = "block";
+    if (role === "parfumeuse" && "ontouchstart" in window)
+        document.getElementById("parfumButton").style.display = "block";
     if ("ontouchstart" in window)
         document.getElementById("joystickContainer").style.display = "block";
 }
@@ -400,6 +402,43 @@ export function displayAfternoonToNight() {
         else setTimeout(() => { overlay.remove(); canvas.style.visibility = "visible"; }, 600);
     }
     requestAnimationFrame(animate);
+}
+
+export function displayParfume(ctx, x, y) {
+    const now = Date.now();
+    
+    // 3 particules décalées dans le temps
+    const particles = [
+        { offset: 0,      phase: 0 },
+        { offset: 800,    phase: 2.1 },
+        { offset: 1600,   phase: 4.2 },
+    ];
+
+    particles.forEach(({ offset, phase }) => {
+        const t = ((now + offset) % 2400) / 2400; // cycle de 2.4s
+
+        // Monte de y-32 à y-80
+        const py = (y - 32) - t * 48;
+        // Ondulation horizontale douce
+        const px = x + Math.sin(t * Math.PI * 2 + phase) * 6;
+        // Apparaît puis disparaît
+        const alpha = t < 0.3
+            ? t / 0.3
+            : (t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1);
+        // Grossit légèrement
+        const radius = 2 + t * 3;
+
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.45;
+        const grad = ctx.createRadialGradient(px, py, 0, px, py, radius);
+        grad.addColorStop(0,   "rgba(255, 150, 200, 1)");
+        grad.addColorStop(1,   "rgba(255, 100, 180, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
 }
 
 // ── Panneau Avatar ────────────────────────────────────────────────────────────

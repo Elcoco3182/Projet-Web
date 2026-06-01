@@ -52,12 +52,12 @@ function gameLoop(timestamp) {
         if (keys.ArrowRight || joystickInput.right) state.localJoueur.moveRight(deltaTime);
     }
 
-    switch(localJoueur.type ) {
+    switch(state.localJoueur.type ) {
         case "assassin":
             if (keys.Spacebar || joystickInput.killBoutton) state.localJoueur.tryKill(socket);
             break;
         case "parfumeuse":
-            if (keys.Spacebar || joystickInput.parfumBoutton) state.localJoueur.tryParfume();
+            if (keys.Spacebar || joystickInput.parfumButton) state.localJoueur.tryParfume();
             break;
     }
 

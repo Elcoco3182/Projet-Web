@@ -1,6 +1,7 @@
 import * as state from "../core/state.js";
 import { images } from "./assets.js";
 import { keys, joystickInput } from "../ui/input.js";
+import { displayParfume } from "../ui/ui.js"
 
 export const canvas      = document.getElementById("gameCanvas");
 export const ctx         = canvas.getContext("2d");
@@ -115,8 +116,8 @@ function drawJoueurImage(x, y, player) {
 
     ctx.save();
 
-    if (player.isPafume === true) {
-        //displayParfume(id);
+    if (player.isParfume) {
+        displayParfume(ctx, x, y);
     }
 
     if (state.isMidnight || state.isDawn) {

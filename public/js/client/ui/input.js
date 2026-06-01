@@ -5,7 +5,7 @@ export const keys = {
 };
 
 export const joystickInput = {
-    up: false, down: false, left: false, right: false, killBoutton: false,
+    up: false, down: false, left: false, right: false, killBoutton: false, parfumButton: false,
 };
 
 document.addEventListener("keydown", (e) => {
@@ -24,6 +24,7 @@ document.addEventListener("keyup", (e) => {
 const joystickContainer = document.getElementById("joystickContainer");
 const joystick          = document.getElementById("joystick");
 const killButton        = document.getElementById("killButton");
+const parfumButton      = document.getElementById("parfumButton");
 
 let touchStartX = 0, touchStartY = 0, isTouching = false;
 
@@ -59,3 +60,6 @@ joystickContainer.addEventListener("touchend", () => {
 
 killButton.addEventListener("touchstart", (e) => { joystickInput.killBoutton = true;  e.preventDefault(); });
 killButton.addEventListener("touchend",   (e) => { joystickInput.killBoutton = false; e.preventDefault(); });
+
+parfumButton.addEventListener("touchstart", (e) => { joystickInput.parfumButton = true;  e.preventDefault(); });
+parfumButton.addEventListener("touchend",   (e) => { joystickInput.parfumButton = false; e.preventDefault(); });
