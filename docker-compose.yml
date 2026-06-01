@@ -49,6 +49,7 @@ services:
       - middleNetwork
 
   api:
+    read_only: true
     image: ${CI_REGISTRY_IMAGE:-local}/api:latest
     build:
       context: .

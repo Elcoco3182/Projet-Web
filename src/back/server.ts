@@ -30,6 +30,13 @@ app.use(oakCors({
 // ── Logger ────────────────────────────────────────────────────────────────────
 app.use(async (ctx, next) => {
   await next();
+  ctx.response.headers.set("X-Content-Type-Options", "nosniff"); // Empêche les attaques par uploads de fichier txt
+  ctx.response.headers.set("X-Frame-Options", "DENY"); // Empêche d'être chargé dans une <iframe> sur un autre site
+  ctx.response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains",
+  ); // Force le navigateur à toujours utiliser HTTPS
+  ctx.response.headers.set("Content-Security-Policy", "default-src 'self'"); // Définit d'où peuvent venir les ressources chargées par la page
   console.log(
     `${ctx.request.method} ${ctx.request.url.pathname} → ${ctx.response.status}`,
   );

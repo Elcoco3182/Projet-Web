@@ -1,4 +1,4 @@
-FROM postgres:16-alpine
+FROM postgres:16.3-alpine
 
 #ENV POSTGRES_DB=${POSTGRES_DB}
 #ENV POSTGRES_USER=${POSTGRES_USER}
