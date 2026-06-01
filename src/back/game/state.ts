@@ -89,7 +89,7 @@ export const phaseDurations = {
   isAfternoon: 60_000,
   isNight: 15_000,
   isMidnight: 40_000,
-  isDawn: 45_000,
+  isDawn: 10_000,
 };
 
 /*
