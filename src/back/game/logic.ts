@@ -143,6 +143,10 @@ async function giveRoleAll() {
         role = "innocent";
         role_id = 1;
         break;
+      case "P":
+        role = "parfumeuse";
+        role_id = 6;
+        break;
     }
     i++;
 

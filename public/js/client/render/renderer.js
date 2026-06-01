@@ -115,6 +115,10 @@ function drawJoueurImage(x, y, player) {
 
     ctx.save();
 
+    if (player.isPafume === true) {
+        //displayParfume(id);
+    }
+
     if (state.isMidnight || state.isDawn) {
         // Minuit et aube : on voit les vrais rôles
         switch (player.type) {
@@ -123,6 +127,9 @@ function drawJoueurImage(x, y, player) {
                 break;
             case "petitefille":
                 ctx.drawImage(images["petitefille"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+                break;
+            case "parfumeuse":
+                ctx.drawImage(images["parfumeuse"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
                 break;
             default:
                 ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);

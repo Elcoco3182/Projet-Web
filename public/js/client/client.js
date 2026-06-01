@@ -52,7 +52,14 @@ function gameLoop(timestamp) {
         if (keys.ArrowRight || joystickInput.right) state.localJoueur.moveRight(deltaTime);
     }
 
-    if (keys.Spacebar || joystickInput.killBoutton) state.localJoueur.tryKill(socket);
+    switch(localJoueur.type ) {
+        case "assassin":
+            if (keys.Spacebar || joystickInput.killBoutton) state.localJoueur.tryKill(socket);
+            break;
+        case "parfumeuse":
+            if (keys.Spacebar || joystickInput.parfumBoutton) state.localJoueur.tryParfume();
+            break;
+    }
 
     sendUpdate(state.localJoueur, keys, joystickInput);
     draw(getCurrentDayTime);

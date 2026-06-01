@@ -19,8 +19,8 @@ export function displayGameEndMessage(result) {
     canvas.style.visibility = "visible";
     canvas.style.display = "none";
 
-    const roleLabel = { assassin: "Assassin", innocent: "Innocent", petitefille: "Petite fille" };
-    const roleColor = { assassin: "#ef5350", innocent: "#4fc3f7", petitefille: "#ce93d8" };
+    const roleLabel = { assassin: "Assassin", innocent: "Innocent", petitefille: "Petite fille", parfumeuse: "Parfumeuse" };
+    const roleColor = { assassin: "#ef5350", innocent: "#4fc3f7", petitefille: "#ce93d8", parfumeuse: "#e32b4a" };
 
     const winners = state.players.filter((p) => {
         if (result === "vicInno")   return p.type === "innocent" || p.type === "petitefille";

@@ -8,6 +8,7 @@ export class Joueur {
         this.y     = y;
         this.died  = false;
         this.speed = 4;
+        this.isParfume = false;
     }
 
     moveUp(dt) {
@@ -34,6 +35,12 @@ export class Joueur {
         return state.isMidnight && state.localJoueur.type === "assassin";
     }
 
+    canParfume() {
+        state.players.forEach((player) => {
+            if (player.isParfume = true) return false;
+        })
+    }
+
     tryKill(socket) {
         const target = state.players.find((p) => {
             if (p.id === state.localJoueur.id) return false;
@@ -43,6 +50,18 @@ export class Joueur {
         });
         if (target && this.canKill()) {
             socket.send(JSON.stringify({ type: "killFromAssassin", targetId: target.id }));
+        }
+    }
+
+    tryParfume() {
+        const target = state.players.find((p) => {
+            if (p.id === state.localJoueur.id) return false;
+            const dx = p.x - state.localJoueur.x;
+            const dy = p.y - state.localJoueur.y;
+            return Math.sqrt(dx * dx + dy * dy) < 80;
+        });
+        if (target && this.canParfume()) {
+            target.isParfume = true;
         }
     }
 }
