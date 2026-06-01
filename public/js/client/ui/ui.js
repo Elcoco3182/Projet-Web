@@ -426,12 +426,12 @@ export function displayParfume(ctx, x, y) {
             ? t / 0.3
             : (t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1);
         // Grossit légèrement
-        const radius = 2 + t * 3;
+        const radius = 10 + t * 3;
 
         ctx.save();
-        ctx.globalAlpha = alpha * 0.45;
+        ctx.globalAlpha = alpha * 0.85;
         const grad = ctx.createRadialGradient(px, py, 0, px, py, radius);
-        grad.addColorStop(0,   "rgba(255, 150, 200, 1)");
+        grad.addColorStop(0,   "rgba(255, 60, 154, 1)");
         grad.addColorStop(1,   "rgba(255, 100, 180, 0)");
         ctx.fillStyle = grad;
         ctx.beginPath();
