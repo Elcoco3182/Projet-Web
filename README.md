@@ -48,7 +48,7 @@ Il n'y a qu'une seule carte pour l'instant, celle du rez-de-chaussé du bâtimen
 ### Stockage des données
 
 Toutes les données utiles sont stockés sur 5 tables de données :
-```mermaid
+```
 +--------------------------------+          +----------------------+
 |            USERS               |          |        ROLES         |
 +--------------------------------+          +----------------------+
