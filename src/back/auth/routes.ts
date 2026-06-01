@@ -155,14 +155,17 @@ authRouter.post("/login", async (ctx) => {
 
   let hashToCheck = "$2a$12$invalide.hash.pour.eviter.timing.attaque";
   let fetchedUsername: string | null = null;
+  let fetchedUserId: number | null = null;
 
   if (userRes?.ok) {
     const userData = await userRes.json() as {
+      id: number;
       username: string;
       password_hash: string;
     };
     hashToCheck = userData.password_hash;
     fetchedUsername = userData.username;
+    fetchedUserId = userData.id;
   }
 
   const valid = await bcrypt.compare(password + POIVRE, hashToCheck);
@@ -183,7 +186,7 @@ authRouter.post("/login", async (ctx) => {
 
   // rjout du refresh token (30 jours)
   const rawRefreshToken = generateRawRefreshToken();
-  await storeRefreshToken(fetchedUser.id, rawRefreshToken);
+  await storeRefreshToken(fetchedUserId!, rawRefreshToken);
   setRefreshTokenCookie(ctx, rawRefreshToken);
 
   ctx.response.status = 200;

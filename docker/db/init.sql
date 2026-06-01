@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(30) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    admin BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE roles
@@ -69,3 +70,5 @@ VALUES (1, 'innocent'),
 
 -- Index sur username pour accélérer les lookups au login
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+
+SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
