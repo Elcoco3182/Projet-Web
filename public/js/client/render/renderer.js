@@ -130,7 +130,12 @@ function drawJoueurImage(x, y, player) {
                 ctx.drawImage(images["petitefille"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
                 break;
             case "parfumeuse":
-                ctx.drawImage(images["parfumeuse"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+                if (state.isDawn) {
+                    ctx.drawImage(images["parfumeuse"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+                }
+                else {
+                    ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+                }
                 break;
             default:
                 ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
