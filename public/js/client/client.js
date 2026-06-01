@@ -57,7 +57,8 @@ function gameLoop(timestamp) {
             if (keys.Spacebar || joystickInput.killBoutton) state.localJoueur.tryKill(socket);
             break;
         case "parfumeuse":
-            if (keys.Spacebar || joystickInput.parfumButton) state.localJoueur.tryParfume();
+            if (keys.Spacebar || joystickInput.parfumButton)
+                state.localJoueur.tryParfume(socket);
             break;
     }
 

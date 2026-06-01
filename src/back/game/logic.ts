@@ -330,6 +330,12 @@ export async function tryKill(attackerId: string, targetId: string) {
   }
 }
 
+export function removeParfume() {
+  players.forEach((player) => {
+    player.isParfume = false;
+  });
+}
+
 // ==================== VOTES ====================
 
 export function checkVotesComplet() {

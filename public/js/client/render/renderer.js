@@ -116,7 +116,7 @@ function drawJoueurImage(x, y, player) {
 
     ctx.save();
 
-    if (player.isParfume) {
+    if (state.localJoueur.type == "parfumeuse" && player.isParfume) {
         displayParfume(ctx, x, y);
     }
 

@@ -36,9 +36,7 @@ export class Joueur {
     }
 
     canParfume() {
-        state.players.forEach((player) => {
-            if (player.isParfume) return false;
-        })
+        return !state.players.some((player) => player.isParfume);
     }
 
     tryKill(socket) {
@@ -53,7 +51,7 @@ export class Joueur {
         }
     }
 
-    tryParfume() {
+    tryParfume(socket) {
         const target = state.players.find((p) => {
             if (p.id === state.localJoueur.id) return false;
             const dx = p.x - state.localJoueur.x;
@@ -61,7 +59,7 @@ export class Joueur {
             return Math.sqrt(dx * dx + dy * dy) < 80;
         });
         if (target && this.canParfume()) {
-            state.players[target].isParfume = true;
+            socket.send(JSON.stringify({ type: "parfume", targetId: target.id }));
         }
     }
 }

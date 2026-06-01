@@ -28,6 +28,7 @@ export type Player = {
   username: string;
   type?: string;
   avatar: AvatarId;
+  isParfume: boolean;
 };
 
 export type GameState = "noConnected" | "lobby" | "playing";

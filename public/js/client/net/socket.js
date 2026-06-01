@@ -1,5 +1,4 @@
 import * as state from "../core/state.js";
-import { removeParfume } from "../core/role.js";
 import { Joueur } from "../core/player.js";
 import {
     displayKilledMessage, displayGameEndMessage, displayErrorMessage,
@@ -53,7 +52,7 @@ export function initSocketMessages(onOpen) {
                 state.setMapSize(data.width, data.height);
                 break;
             case "isMorning":
-                removeParfume();
+                socket.send(JSON.stringify({ type: "unParfume"}));
                 displayAubeToMatin();
                 state.setDayTime("isMorning");
                 break;
