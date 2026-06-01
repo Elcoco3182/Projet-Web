@@ -28,4 +28,4 @@ RUN chown -R deno:deno /app /tmp/deno-cache
 EXPOSE 3000
 USER deno
 
-CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read=/app/src,/app/public,/app/deno.json", "src/back/server.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read=/app/src,/app/public,/app/certs,/app/deno.json,/app/deno.lock", "src/back/server.ts"]
