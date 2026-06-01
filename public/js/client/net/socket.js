@@ -52,6 +52,7 @@ export function initSocketMessages(onOpen) {
                 state.setMapSize(data.width, data.height);
                 break;
             case "isMorning":
+                socket.send(JSON.stringify({ type: "unParfume"}));
                 displayAubeToMatin();
                 state.setDayTime("isMorning");
                 break;

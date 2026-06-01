@@ -28,6 +28,7 @@ export type Player = {
   username: string;
   type?: string;
   avatar: AvatarId;
+  isParfume: boolean;
 };
 
 export type GameState = "noConnected" | "lobby" | "playing";
@@ -64,32 +65,32 @@ export const roleSelonNbJoueur = [
   "api",
   "apii",
   "apiii",
-  "apiiii",
-  "apiiiii",
-  "aappiiii",
-  "aappiiiii",
-  "aappiiiiii",
-  "aaapppiiiii",
-  "aaapppiiiiii",
-  "aaapppiiiiiii",
-  "aaaappppiiiiii",
-  "aaaappppiiiiiii",
-  "aaaappppiiiiiiii",
-  "aaaaapppppiiiiiii",
-  "aaaaapppppiiiiiiii",
-  "aaaaapppppiiiiiiiii",
-  "aaaaaappppppiiiiiiii",
+  "apPiii",
+  "apPiiii",
+  "aapPiiii",
+  "aapPiiiii",
+  "aapPiiiiii",
+  "aaappPiiiii",
+  "aaappPiiiiii",
+  "aaappPPiiiiii",
+  "aaaapppPPiiiii",
+  "aaaapppPPiiiiii",
+  "aaaapppPPiiiiiii",
+  "aaaaapppPPiiiiiii",
+  "aaaaapppPPiiiiiiii",
+  "aaaaapppPPiiiiiiiii",
+  "aaaaaappppPPPiiiiiii",
 ];
 
 // ==================== DURÉES DES PHASES ====================
 
 export const phaseDurations = {
-  isMorning: 15_000,
+  isMorning: 20_000,
   isNoon: 120_000,
   isAfternoon: 60_000,
   isNight: 15_000,
   isMidnight: 40_000,
-  isDawn: 10_000,
+  isDawn: 30_000,
 };
 
 /*

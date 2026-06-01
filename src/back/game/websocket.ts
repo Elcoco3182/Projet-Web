@@ -20,6 +20,7 @@ import {
   closeGame,
   createPlayerId,
   forceSwitchDayTime,
+  removeParfume,
   sendUpdatelobby,
   setReadyPlayer,
   startGame,
@@ -102,6 +103,7 @@ wsRouter.get("/ws", async (ctx) => {
       ready: false,
       username,
       avatar: "innocent",
+      isParfume: false,
     });
     sendUpdatelobby();
   }
@@ -192,6 +194,14 @@ wsRouter.get("/ws", async (ctx) => {
             resetVotes();
             forceSwitchDayTime();
           }
+          break;
+        case "parfume": {
+          const p = players.get(data.targetId);
+          if (p) p.isParfume = true;
+          break;
+        }
+        case "unParfume":
+          removeParfume();
           break;
       }
     } catch (err) {

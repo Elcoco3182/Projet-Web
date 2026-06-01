@@ -1,6 +1,7 @@
 import * as state from "../core/state.js";
 import { images } from "./assets.js";
 import { keys, joystickInput } from "../ui/input.js";
+import { displayParfume } from "../ui/ui.js"
 
 export const canvas      = document.getElementById("gameCanvas");
 export const ctx         = canvas.getContext("2d");
@@ -115,6 +116,10 @@ function drawJoueurImage(x, y, player) {
 
     ctx.save();
 
+    if (state.localJoueur.type == "parfumeuse" && player.isParfume) {
+        displayParfume(ctx, x, y);
+    }
+
     if (state.isMidnight || state.isDawn) {
         // Minuit et aube : on voit les vrais rôles
         switch (player.type) {
@@ -123,6 +128,9 @@ function drawJoueurImage(x, y, player) {
                 break;
             case "petitefille":
                 ctx.drawImage(images["petitefille"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+                break;
+            case "parfumeuse":
+                ctx.drawImage(images["parfumeuse"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
                 break;
             default:
                 ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);

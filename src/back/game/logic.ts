@@ -143,6 +143,10 @@ async function giveRoleAll() {
         role = "innocent";
         role_id = 1;
         break;
+      case "P":
+        role = "parfumeuse";
+        role_id = 6;
+        break;
     }
     i++;
 
@@ -324,6 +328,12 @@ export async function tryKill(attackerId: string, targetId: string) {
     broadcastGameEnd(result);
     await closeGame();
   }
+}
+
+export function removeParfume() {
+  players.forEach((player) => {
+    player.isParfume = false;
+  });
 }
 
 // ==================== VOTES ====================
