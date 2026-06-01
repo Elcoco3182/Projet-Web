@@ -152,7 +152,6 @@ wsRouter.get("/ws", async (ctx) => {
           break;
         case "killFromAssassin":
           await tryKill(playerId, data.targetId);
-          forceSwitchDayTime();
           break;
         case "setReady":
           setReadyPlayer(playerId);

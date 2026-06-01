@@ -56,7 +56,7 @@ export class Joueur {
             if (p.id === state.localJoueur.id) return false;
             const dx = p.x - state.localJoueur.x;
             const dy = p.y - state.localJoueur.y;
-            return Math.sqrt(dx * dx + dy * dy) < 80;
+            return Math.sqrt(dx * dx + dy * dy) < 60;
         });
         if (target && this.canParfume()) {
             socket.send(JSON.stringify({ type: "parfume", targetId: target.id }));

@@ -113,6 +113,32 @@ a {
     z-index: 1000;
 }
 
+#parfumButton {
+    position: fixed;
+
+    bottom: 40px;
+    right: 40px;
+
+    width: 80px;
+    height: 80px;
+
+    border-radius: 50%;
+
+    border: none;
+
+    font-size: 32px;
+
+    background: rgba(230, 36, 255, 0.35);
+
+    color: white;
+
+    display: none;
+
+    pointer-events: auto;
+
+    z-index: 1000;
+}
+
 #joystickContainer {
     position: fixed;
     bottom: 30px;

@@ -318,10 +318,12 @@ export async function tryKill(attackerId: string, targetId: string) {
 
   const dx = attacker.x - target.x;
   const dy = attacker.y - target.y;
-  if (Math.sqrt(dx * dx + dy * dy) > 80) return;
+  if (Math.sqrt(dx * dx + dy * dy) > 60) return;
 
   sendKilled(targetId);
   players.delete(targetId);
+
+  forceSwitchDayTime();
 
   const result = isEndGame();
   if (result !== "continue") {
