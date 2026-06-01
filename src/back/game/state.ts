@@ -3,6 +3,17 @@
 export const sockets = new Map<string, WebSocket>();
 export const players = new Map<string, Player>();
 
+export const AVATARS = [
+  "innocent",
+  "policeman",
+  "parasolLady",
+  "baby",
+  "vieu",
+  "giovanni",
+  "clown",
+] as const;
+export type AvatarId = typeof AVATARS[number];
+
 export type Player = {
   id: string;
   x: number;
@@ -16,6 +27,7 @@ export type Player = {
   skip?: boolean;
   username: string;
   type?: string;
+  avatar: AvatarId;
 };
 
 export type GameState = "noConnected" | "lobby" | "playing";

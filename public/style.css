@@ -204,6 +204,16 @@ a {
     display: flex; align-items: center; justify-content: center;
 }
 .p-name { font-size: 12px; color: #333; }
+#avatarBtn {
+    background-color: #7c3aed;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 0;
+}
 #voteBtn {
     width: 100%;
     padding: 6px 0;

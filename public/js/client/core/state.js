@@ -16,10 +16,12 @@ export function setMapSize(w, h) { mapWidth  = w; mapHeight = h; }
 export let localJoueur     = null;
 export let pendingUsername = null;
 export let rejected        = false;
+export let localAvatar     = "innocent";
 
 export function setLocalJoueur(j)     { localJoueur    = j; }
 export function setPendingUsername(u) { pendingUsername = u; }
 export function setRejected(v)        { rejected        = v; }
+export function setLocalAvatar(a)     { localAvatar     = a; }
 
 // Cycle jour/nuit (isDawn ajouté)
 export let isMorning   = false;

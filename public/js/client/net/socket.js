@@ -4,7 +4,9 @@ import {
     displayKilledMessage, displayGameEndMessage, displayErrorMessage,
     setJoueurAttributes, showVotePanel, hideVotePanel,
     displayExeco, displayKilledByVoteMessage, displayAubeToMatin,
+    displayAfternoonToNight,
 } from "../ui/ui.js";
+import { setLocalAvatar } from "../core/state.js";
 
 export const socket = new WebSocket(`wss://${location.hostname}:3000/ws`);
 
@@ -72,7 +74,12 @@ export function initSocketMessages(onOpen) {
                 hideVotePanel();
                 break;
             case "isNight":
+                displayAfternoonToNight();
                 state.setDayTime("isNight");
+                break;
+            case "nightSpawn":
+                state.localJoueur.x = data.x;
+                state.localJoueur.y = data.y;
                 break;
             case "isMidnight":
                 state.setDayTime("isMidnight");
@@ -89,6 +96,7 @@ export function initSocketMessages(onOpen) {
                 document.getElementById("readyBtn").style.display = "none";
                 document.getElementById("lobbyCount").style.display = "none";
                 document.getElementById("dayTime").style.visibility = "visible";
+                document.getElementById("avatarBtn").style.display = "none";
                 break;
             case "rejected":
                 document.getElementById("popup").style.display = "none";
@@ -105,6 +113,16 @@ export function initSocketMessages(onOpen) {
             case "obstacles":
                 state.setObstacles(data.obstacles);
                 break;
+            case "avatarUpdate": {
+                // Mettre à jour l'avatar du joueur dans la liste locale
+                const p = state.players.find((pl) => pl.id === data.playerId);
+                if (p) p.avatar = data.avatar;
+                // Si c'est notre propre joueur, sync localAvatar aussi
+                if (state.localJoueur && data.playerId === state.localJoueur.id) {
+                    setLocalAvatar(data.avatar);
+                }
+                break;
+            }
         }
     };
 

@@ -106,7 +106,7 @@ function drawJoueurImage(x, y, player) {
 
     if (state.localJoueur.id === player.id) {
         misAjourSourceY();
-        if (!state.isNoon) localSx = returnSourceX(); // animation figée à midi
+        if (!state.isNoon) localSx = returnSourceX();
         localSy = state.sy;
     } else {
         const dirMap = { down: 0, left: 64, right: 128, up: 192 };
@@ -116,7 +116,7 @@ function drawJoueurImage(x, y, player) {
     ctx.save();
 
     if (state.isMidnight || state.isDawn) {
-        // La nuit et à l'aube : on voit les rôles
+        // Minuit et aube : on voit les vrais rôles
         switch (player.type) {
             case "assassin":
                 ctx.drawImage(images["assassin"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
@@ -127,17 +127,20 @@ function drawJoueurImage(x, y, player) {
             default:
                 ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
         }
-    } else {
-        // Jour : tout le monde apparaît innocent
+    } else if (state.isNight) {
+        // Nuit : tout le monde apparaît comme un innocent, pas de nom
         ctx.drawImage(images["innocent"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
-        if (!state.isNight) {
-            ctx.font = "12px Arial";
-            ctx.textAlign = "center";
-            ctx.fillStyle = "white";
-            ctx.fillText(player.username ?? "?", x, y + 42);
-            ctx.fillStyle = "black";
-            ctx.fillText(player.username ?? "?", x + 1, y + 43);
-        }
+    } else {
+        // Jour : avatar choisi, rôle caché, nom affiché
+        const avatarKey = player.avatar || "innocent";
+        const img = images[avatarKey] || images["innocent"];
+        ctx.drawImage(img, localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+        ctx.font = "12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "white";
+        ctx.fillText(player.username ?? "?", x, y + 42);
+        ctx.fillStyle = "black";
+        ctx.fillText(player.username ?? "?", x + 1, y + 43);
     }
 
     ctx.restore();
