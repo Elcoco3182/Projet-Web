@@ -128,8 +128,10 @@ function drawJoueurImage(x, y, player) {
                 ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
         }
     } else {
-        // Jour : tout le monde apparaît innocent
-        ctx.drawImage(images["innocent"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+        // Jour : tout le monde apparaît avec son avatar (rôle caché)
+        const avatarKey = player.avatar || "innocent";
+        const img = images[avatarKey] || images["innocent"];
+        ctx.drawImage(img, localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
         if (!state.isNight) {
             ctx.font = "12px Arial";
             ctx.textAlign = "center";

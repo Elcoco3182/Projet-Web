@@ -2,6 +2,7 @@ import { Router } from "@oak/oak";
 import { verify } from "@zaubrik/djwt";
 import { secretKey } from "../config.ts";
 import {
+  AVATARS,
   MAP_HEIGHT,
   MAP_WIDTH,
   players,
@@ -100,6 +101,7 @@ wsRouter.get("/ws", async (ctx) => {
       active: false,
       ready: false,
       username,
+      avatar: "innocent",
     });
     sendUpdatelobby();
   }
@@ -165,6 +167,24 @@ wsRouter.get("/ws", async (ctx) => {
             state.nbSkip = 0;
           }
           break;
+        case "setAvatar": {
+          // Uniquement en lobby, pas pendant la partie
+          if (state.gameState !== "lobby") break;
+          const avatar = data.avatar;
+          if (!AVATARS.includes(avatar)) break;
+          const p = players.get(playerId);
+          if (p) p.avatar = avatar;
+          // Diffuser la mise à jour à tous les joueurs
+          const avatarUpdate = JSON.stringify({
+            type: "avatarUpdate",
+            playerId,
+            avatar,
+          });
+          sockets.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) client.send(avatarUpdate);
+          });
+          break;
+        }
         case "vote":
           pushVote(data.vote);
           if (votes.length === players.size + 1) {

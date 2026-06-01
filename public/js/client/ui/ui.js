@@ -1,6 +1,7 @@
 import { canvas } from "../render/renderer.js";
 import * as state from "../core/state.js";
 import { socket } from "../net/socket.js";
+import { AVATARS, images } from "../render/assets.js";
 
 export function displayKilledMessage() {
     state.localJoueur.died = true;
@@ -267,4 +268,116 @@ export function displayAubeToMatin() {
         else setTimeout(() => { overlay.remove(); canvas.style.visibility = "visible"; }, 600);
     }
     requestAnimationFrame(animate);
+}
+// ── Panneau Avatar ────────────────────────────────────────────────────────────
+
+const AVATAR_LABELS = {
+    innocent:    "Villageois",
+    policeman:   "Policier",
+    parasolLady: "Dame au parasol",
+    baby:        "Bébé",
+    vieu:        "Vieux",
+    giovanni:    "Giovanni",
+};
+
+let avatarPanelIndex = 0;
+let avatarPanelEl    = null;
+let avatarCanvasEl   = null;
+
+export function showAvatarPanel() {
+    if (avatarPanelEl) return; // déjà ouvert
+
+    // index de départ = avatar actuel
+    const currentIdx = AVATARS.indexOf(state.localAvatar);
+    avatarPanelIndex = currentIdx >= 0 ? currentIdx : 0;
+
+    avatarPanelEl = document.createElement("div");
+    avatarPanelEl.id = "avatarPanel";
+    avatarPanelEl.style.cssText = [
+        "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);",
+        "background:rgba(255,255,255,0.96);border-radius:14px;",
+        "padding:24px 28px;display:flex;flex-direction:column;align-items:center;",
+        "gap:14px;font-family:Arial,sans-serif;z-index:500;",
+        "box-shadow:0 8px 32px rgba(0,0,0,0.25);min-width:220px;",
+    ].join("");
+
+    const title = document.createElement("p");
+    title.textContent = "Choisir un avatar";
+    title.style.cssText = "font-weight:bold;font-size:15px;margin:0;color:#222;";
+
+    // Canvas de preview (affiche le sprite)
+    avatarCanvasEl = document.createElement("canvas");
+    avatarCanvasEl.width  = 64;
+    avatarCanvasEl.height = 64;
+    avatarCanvasEl.style.cssText = "image-rendering:pixelated;width:96px;height:96px;border-radius:8px;background:#f0f0f0;border:2px solid #ddd;";
+
+    const nameEl = document.createElement("p");
+    nameEl.id = "avatarName";
+    nameEl.style.cssText = "font-size:13px;color:#555;margin:0;";
+
+    // Flèches + canvas
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:14px;";
+
+    const btnLeft = document.createElement("button");
+    btnLeft.textContent = "◀";
+    btnLeft.style.cssText = "font-size:20px;background:none;border:none;cursor:pointer;color:#333;padding:4px 8px;margin:0;";
+
+    const btnRight = document.createElement("button");
+    btnRight.textContent = "▶";
+    btnRight.style.cssText = "font-size:20px;background:none;border:none;cursor:pointer;color:#333;padding:4px 8px;margin:0;";
+
+    btnLeft.addEventListener("click",  () => { avatarPanelIndex = (avatarPanelIndex - 1 + AVATARS.length) % AVATARS.length; renderAvatarPreview(nameEl); });
+    btnRight.addEventListener("click", () => { avatarPanelIndex = (avatarPanelIndex + 1) % AVATARS.length; renderAvatarPreview(nameEl); });
+
+    row.append(btnLeft, avatarCanvasEl, btnRight);
+
+    // Boutons Confirmer / Annuler
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display:flex;gap:10px;";
+
+    const btnConfirm = document.createElement("button");
+    btnConfirm.textContent = "Confirmer";
+    btnConfirm.style.cssText = "background:#4CAF50;color:white;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-size:14px;margin:0;";
+
+    const btnCancel = document.createElement("button");
+    btnCancel.textContent = "Annuler";
+    btnCancel.style.cssText = "background:#e0e0e0;color:#333;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-size:14px;margin:0;";
+
+    btnConfirm.addEventListener("click", () => {
+        const chosen = AVATARS[avatarPanelIndex];
+        state.setLocalAvatar(chosen);
+        socket.send(JSON.stringify({ type: "setAvatar", avatar: chosen }));
+        closeAvatarPanel();
+    });
+    btnCancel.addEventListener("click", closeAvatarPanel);
+
+    btnRow.append(btnConfirm, btnCancel);
+    avatarPanelEl.append(title, row, nameEl, btnRow);
+    document.body.appendChild(avatarPanelEl);
+
+    renderAvatarPreview(nameEl);
+}
+
+function renderAvatarPreview(nameEl) {
+    const key = AVATARS[avatarPanelIndex];
+    nameEl.textContent = AVATAR_LABELS[key] ?? key;
+    const ctx2 = avatarCanvasEl.getContext("2d");
+    ctx2.clearRect(0, 0, 64, 64);
+    const img = images[key];
+    if (img && img.complete && img.naturalWidth > 0) {
+        // Affiche la frame de face (sy=0, sx=0) du sprite sheet
+        ctx2.drawImage(img, 0, 0, 64, 64, 0, 0, 64, 64);
+    } else {
+        ctx2.fillStyle = "#ccc";
+        ctx2.fillRect(0, 0, 64, 64);
+        ctx2.fillStyle = "#888";
+        ctx2.font = "11px Arial";
+        ctx2.textAlign = "center";
+        ctx2.fillText("?", 32, 36);
+    }
+}
+
+function closeAvatarPanel() {
+    if (avatarPanelEl) { avatarPanelEl.remove(); avatarPanelEl = null; }
 }
