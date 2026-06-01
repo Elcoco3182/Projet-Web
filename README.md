@@ -21,6 +21,97 @@ Deploiement : Docker Compose\
 Sécurité : HTTPS, CORS, Password hash sel et poivre, Cookies sécurisé, Access
 Token
 
+## Fonctionnalité
+
+### Gameplay
+
+Le jeu se déroule en plusieurs journées divisées en 6 moments :
+- Le matin, après une nuit bien mouvementée
+- Le midi, le moment des votes et discutions entre joueurs
+- L'après-midi, pour parler après le vote
+- Le soir, le moment de partir se cacher ou de se préparer à tuer
+- Minuit, les loups et autres criminels passent à l'action
+- L'Aube, c'est au tour des rôles safes d'utilisés leurs pouvoirs (s'ils en ont)
+
+### Rôles
+
+Il y a pour l'instant 4 roles, mais bien d'autres arriveront dans le futur :
+- L'innocent, le villageois classique avec que ses jambes pour courir
+- l'assassin, prêt à tuer et trahir tout le monde le moment venu
+- la petite fille, elle a une très grande vision capable de repérer les assassins
+- la parfumeuse, elle parfume les gens la journée pour les repérer la nuit
+
+### Carte
+
+Il n'y a qu'une seule carte pour l'instant, celle du rez-de-chaussé du bâtiment Polytech.
+
+### Stockage des données
+
+Toutes les données utiles sont stockés sur 5 tables de données :
+```mermaid
++--------------------------------+          +----------------------+
+|            USERS               |          |        ROLES         |
++--------------------------------+          +----------------------+
+| PK  id            SERIAL       |          | PK  id    SERIAL     |
+|     username      VARCHAR(30)  |          |     name  TEXT       |
+|     password_hash TEXT         |          +----------------------+
+|     created_at    TIMESTAMP    |                     ^
+|     admin         BOOLEAN      |                     |
++--------------------------------+                     |
+         ^                ^                            |
+         |                |               +------------+-----------+
+         |                |               |       HISTORIQUES      |
+         |                |               +------------------------+
+         |                |               | PK  id        SERIAL   |
+         |                +-------------->| FK  user_id   INT      |
+         |                                | FK  party_id  INT      |
+         |                                | FK  role_id   INT      |
+         |                                +------------------------+
+         |                                            ^
+         |                               +------------+
+         |                               |
+         |                    +----------------------------+
+         |                    |       PARTIES              |
+         |                    +----------------------------+
+         |                    | PK  id         SERIAL      |
+         |                    |     started_at TIMESTAMPTZ |
+         |                    |     ended_at   TIMESTAMPTZ |
+         |                    +----------------------------+
+         |
++------------------------------------+
+|          REFRESH_TOKENS            |
++------------------------------------+
+| PK  id         SERIAL              |
+| FK  user_id    INTEGER   NOT NULL  |
+|     token_hash TEXT      UNIQUE    |
+|     expires_at TIMESTAMPTZ         |
+|     created_at TIMESTAMPTZ         |
++------------------------------------+
+```
+
+### CI/CD
+
+Nous avons décidé de faire totalement la partie CI/CD pour pouvoir deploy directement le site web sur la VM de Corentin.
+Ainsi, tout le monde peut s'y connecter :
+1. Se connecter au wifi de Polytech
+2. Aller sur https://162.38.111.34:8080 (ne marche pas sur certain navigateur comme firefox)
+3. Se connecter ou s'inscrire
+4. S'amuser (si le serveur n'est pas en maintenance)
+
+Voici notre pipeline complète (le build et le deploy ne se font que sur le main). \
+En plus de ce qui été demandé, on a rajouté un test : sast qui permet de vérifier des problèmes de sécurités dans notre
+code, ce qui est un critère très important pour nous.
+```
+┌─────────────┐     ┌──────────────────┐     ┌───────────────────┐     ┌─────────────┐
+│     LINT    │     │       TEST       │     │       BUILD       │     │   DEPLOY    │
+├─────────────┤     ├──────────────────┤     ├───────────────────┤     ├─────────────┤
+│  lint       │────▶│  semgrep-sast    │────▶│   build-api       │────▶│   deploy    │
+└─────────────┘     │  test            │     │   build-back      │     └─────────────┘
+                    └──────────────────┘     │   build-db        │
+                                             │   build-front     │
+                                             └───────────────────┘
+```
+
 ## Structure
 
 ```
@@ -28,13 +119,18 @@ Prjet-Web/
 │   .dockerignore
 │   .env
 │   .gitignore
-│   Deno.json
+│   .gitlab-ci.yml
+│   .pre-commit-config.yaml
+│   deno.json
 │   deno.lock
+│   docker-compose.override.yml
 │   docker-compose.yml
-│   package-lock.json
 │   README.md
-│   server.ts
 │   
+├───certs
+│       localhost+2-key.pem
+│       localhost+2.pem
+│       
 ├───doc
 │       api doc
 │       docker doc
@@ -55,16 +151,74 @@ Prjet-Web/
 │           Dockerfile
 │           
 ├───public
-│       client.js
-│       index.html
-│       login.html
-│       login.js
-│       style.css
+│   │   index.html
+│   │   login.css
+│   │   login.html
+│   │   style.css
+│   │   
+│   ├───assets
+│   │   ├───images
+│   │   │       assassin.png
+│   │   │       innocent.png
+│   │   │       Lapipizza2.png
+│   │   │       mapImage.png
+│   │   │       petitefille.png
+│   │   │       polytech_night.jpg
+│   │   │       
+│   │   └───map
+│   │           polytech.json
+│   │           
+│   └───js
+│       │   login.js
+│       │   scene.js
+│       │   
+│       └───client
+│           │   client.js
+│           │   
+│           ├───core
+│           │       collision.js
+│           │       player.js
+│           │       state.js
+│           │       
+│           ├───net
+│           │       socket.js
+│           │       
+│           ├───render
+│           │       assets.js
+│           │       renderer.js
+│           │       
+│           └───ui
+│                   input.js
+│                   ui.js
+│                   
+├───src
+│   ├───back
+│   │   │   config.ts
+│   │   │   server.ts
+│   │   │   
+│   │   ├───auth
+│   │   │       middleware.ts
+│   │   │       routes.ts
+│   │   │       validation.ts
+│   │   │       
+│   │   ├───game
+│   │   │       logic.ts
+│   │   │       state.ts
+│   │   │       websocket.ts
+│   │   │       
+│   │   └───utils
+│   │           fetch.ts
+│   │           map.ts
+│   │           
+│   └───scripts
+│           api.ts
+│           front.ts
+│           
+├───tests
+│       auth.test.ts
 │       
-└───src
-    └───scripts
-            api.ts
-            front.ts
+└───tools
+        extractMap.py
 ```
 
 ## Initialisation
