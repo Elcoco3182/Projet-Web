@@ -269,15 +269,149 @@ export function displayAubeToMatin() {
     }
     requestAnimationFrame(animate);
 }
+// ── Cinématique Nuit ──────────────────────────────────────────────────────────
+
+export function displayAfternoonToNight() {
+    canvas.style.visibility = "hidden";
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:200;background:#000;overflow:hidden;";
+    const cvs = document.createElement("canvas");
+    cvs.style.cssText = "position:absolute;inset:0;width:100%;height:100%;";
+    cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+    overlay.appendChild(cvs);
+
+    const msgBox = document.createElement("div");
+    msgBox.style.cssText = "position:absolute;bottom:22%;width:100%;text-align:center;font-family:Arial,sans-serif;pointer-events:none;";
+    msgBox.innerHTML = `<div id="_nuitBg" style="display:inline-block;background:rgba(0,0,0,0);padding:10px 32px;border-radius:8px;"><p id="_nuitMsg1" style="font-size:13px;color:rgba(180,180,255,0);letter-spacing:0.12em;margin:0;font-weight:bold;text-shadow:0 1px 8px #000;">LA NUIT TOMBE SUR LE VILLAGE</p></div>`;
+    overlay.appendChild(msgBox);
+    document.body.appendChild(overlay);
+
+    const c = cvs.getContext("2d");
+    const W = cvs.width, H = cvs.height;
+    const horizonY = H * 0.62;
+    const DURATION = 3500;
+    let startTime = null;
+
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+    // Même silhouette bâtiment que l'aube, réutilisée
+    function drawBuilding(progress) {
+        const scale = Math.min(W, H) / 420;
+        const bx = W * 0.5 - 110 * scale;
+        const by = horizonY;
+        const silAlpha = 0.6 + progress * 0.3;
+        const silColor = `rgba(8,6,20,${silAlpha})`;
+        c.save(); c.translate(bx, by);
+        c.fillStyle = silColor;
+        c.fillRect(0, -90*scale, 130*scale, 90*scale);
+        c.fillRect(-40*scale, -55*scale, 44*scale, 55*scale);
+        c.fillRect(-4*scale, -95*scale, 138*scale, 8*scale);
+        // Fenêtres allumées (jaune chaud)
+        c.fillStyle = `rgba(255,200,80,${progress * 0.85})`;
+        for (let i = 0; i < 4; i++) {
+            c.fillRect((10+i*28)*scale, -78*scale, 18*scale, 14*scale);
+            c.fillRect((10+i*28)*scale, -54*scale, 18*scale, 14*scale);
+        }
+        c.fillStyle = silColor;
+        c.beginPath(); c.arc(175*scale, -65*scale, 42*scale, 0, Math.PI*2); c.fill();
+        c.fillRect(128*scale, -85*scale, 10*scale, 85*scale);
+        c.fillRect(213*scale, -45*scale, 55*scale, 45*scale);
+        c.fillRect(265*scale, -30*scale, 30*scale, 30*scale);
+        // Arbres
+        c.fillStyle = `rgba(5,18,8,${silAlpha})`;
+        for (let i = 0; i < 8; i++) { c.beginPath(); c.arc((i*38-10)*scale, 0, (12+Math.sin(i*1.7)*4)*scale, Math.PI, 0); c.fill(); }
+        c.restore();
+    }
+
+    function drawStars(progress) {
+        const count = 60;
+        for (let i = 0; i < count; i++) {
+            // Positions stables (seed par index)
+            const px = ((i * 137.508 + 42) % W);
+            const py = ((i * 93.731 + 17) % (horizonY * 0.9));
+            const blink = Math.abs(Math.sin(i * 2.3 + Date.now() * 0.001));
+            const alpha = progress * blink * 0.9;
+            if (alpha < 0.05) continue;
+            c.beginPath();
+            c.arc(px, py, 0.8 + (i % 3) * 0.5, 0, Math.PI * 2);
+            c.fillStyle = `rgba(200,210,255,${alpha})`;
+            c.fill();
+        }
+    }
+
+    function drawFrame(progress) {
+        c.clearRect(0, 0, W, H);
+
+        // Ciel : bleu jour → bleu nuit profond
+        const r = Math.round(100 - progress * 95);
+        const g = Math.round(140 - progress * 130);
+        const b = Math.round(200 - progress * 160);
+        c.fillStyle = `rgb(${r},${g},${b})`;
+        c.fillRect(0, 0, W, H);
+
+        // Bande horizon qui s'assombrit (orange → violet → noir)
+        c.save(); c.globalAlpha = 1 - progress * 0.8;
+        c.fillStyle = `rgb(${Math.round(220 - progress*200)},${Math.round(100 - progress*90)},40)`;
+        c.fillRect(0, horizonY - H*0.12, W, H*0.12); c.restore();
+
+        // Sol
+        c.fillStyle = `rgb(${Math.round(15 - progress*5)},${Math.round(25 - progress*10)},${Math.round(12 - progress*4)})`;
+        c.fillRect(0, horizonY, W, H - horizonY);
+
+        // Lune qui monte
+        const moonR = Math.min(W, H) * 0.055;
+        const moonX = W * 0.28;
+        const moonStartY = horizonY + moonR * 1.5;
+        const moonEndY   = horizonY * 0.25;
+        const moonY = moonStartY + (moonEndY - moonStartY) * easeOut(progress);
+
+        // Halo lune
+        c.beginPath(); c.arc(moonX, moonY, moonR * (2.5 + progress * 0.5), 0, Math.PI*2);
+        c.fillStyle = `rgba(180,190,255,${progress * 0.18})`; c.fill();
+
+        // Corps lune
+        c.beginPath(); c.arc(moonX, moonY, moonR, 0, Math.PI*2);
+        c.fillStyle = `rgba(230,235,255,${Math.min(1, progress * 1.5)})`; c.fill();
+
+        // Cache le bas de la lune sous l'horizon
+        c.save(); c.beginPath(); c.rect(0, horizonY, W, H - horizonY); c.clip();
+        c.beginPath(); c.arc(moonX, moonY, moonR, 0, Math.PI*2);
+        c.fillStyle = `rgb(${Math.round(15 - progress*5)},${Math.round(25 - progress*10)},${Math.round(12 - progress*4)})`; c.fill();
+        c.restore();
+
+        drawStars(progress);
+        drawBuilding(progress);
+
+        // Ligne horizon
+        c.strokeStyle = `rgba(100,100,180,${Math.min(1, progress*3)*0.3})`; c.lineWidth = 1.5;
+        c.beginPath(); c.moveTo(0, horizonY); c.lineTo(W, horizonY); c.stroke();
+
+        // Messages
+        const m1 = document.getElementById("_nuitMsg1");
+        const bg  = document.getElementById("_nuitBg");
+        if (progress > 0.35) { const a = Math.min(1,(progress-0.35)/0.3); if(m1) m1.style.color=`rgba(180,180,255,${a})`; if(bg) bg.style.background=`rgba(0,0,0,${a*0.5})`; }
+    }
+
+    function animate(ts) {
+        if (!startTime) startTime = ts;
+        const progress = Math.min((ts - startTime) / DURATION, 1);
+        drawFrame(progress);
+        if (progress < 1) requestAnimationFrame(animate);
+        else setTimeout(() => { overlay.remove(); canvas.style.visibility = "visible"; }, 600);
+    }
+    requestAnimationFrame(animate);
+}
+
 // ── Panneau Avatar ────────────────────────────────────────────────────────────
 
 const AVATAR_LABELS = {
-    innocent:    "Villageois",
+    innocent:    "Default",
     policeman:   "Policier",
     parasolLady: "Dame au parasol",
     baby:        "Bébé",
     vieu:        "Vieux",
     giovanni:    "Giovanni",
+    clown:       "Clown",
 };
 
 let avatarPanelIndex = 0;

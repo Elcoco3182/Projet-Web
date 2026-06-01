@@ -10,6 +10,7 @@ export const AVATARS = [
   "baby",
   "vieu",
   "giovanni",
+  "clown",
 ] as const;
 export type AvatarId = typeof AVATARS[number];
 

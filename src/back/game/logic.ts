@@ -204,6 +204,7 @@ export function switchDayTime() {
     state.isNight = true;
     broadcast("isNight");
     duree = phaseDurations.isNight;
+    tpAllJoueurNight();
   } else if (state.isNight) {
     state.isNight = false;
     state.isMidnight = true;
@@ -280,6 +281,17 @@ function tpAllJoueurMorning() {
     player.y = spawn.y;
     sockets.get(playerId)?.send(
       JSON.stringify({ type: "morningSpawn", x: spawn.x, y: spawn.y }),
+    );
+  });
+}
+
+function tpAllJoueurNight() {
+  players.forEach((player, playerId) => {
+    const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
+    player.x = spawn.x;
+    player.y = spawn.y;
+    sockets.get(playerId)?.send(
+      JSON.stringify({ type: "nightSpawn", x: spawn.x, y: spawn.y }),
     );
   });
 }

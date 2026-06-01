@@ -4,6 +4,7 @@ import {
     displayKilledMessage, displayGameEndMessage, displayErrorMessage,
     setJoueurAttributes, showVotePanel, hideVotePanel,
     displayExeco, displayKilledByVoteMessage, displayAubeToMatin,
+    displayAfternoonToNight,
 } from "../ui/ui.js";
 import { setLocalAvatar } from "../core/state.js";
 
@@ -73,7 +74,12 @@ export function initSocketMessages(onOpen) {
                 hideVotePanel();
                 break;
             case "isNight":
+                displayAfternoonToNight();
                 state.setDayTime("isNight");
+                break;
+            case "nightSpawn":
+                state.localJoueur.x = data.x;
+                state.localJoueur.y = data.y;
                 break;
             case "isMidnight":
                 state.setDayTime("isMidnight");
