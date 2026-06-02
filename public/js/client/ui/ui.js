@@ -4,12 +4,13 @@ import { socket } from "../net/socket.js";
 import { AVATARS, images } from "../render/assets.js";
 
 export function displayKilledMessage() {
-    state.localJoueur.died = true;
-    canvas.style.display = "none";
-    const el = document.createElement("div");
-    el.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;font-weight:bold;color:red;";
-    el.innerHTML = "You have beeeeeeen killed <br><br> <a href='javascript:void(0);' onclick='window.location.reload();'>Play again</a>";
-    document.body.appendChild(el);
+    // Conservée pour compatibilité. La mort est gérée via enterSpectatorMode() dans socket.js.
+    // Appelée depuis displayKilledByVoteMessage si le joueur local est éliminé par vote.
+    // Dans ce cas on délègue au mode spectateur.
+    import("../net/socket.js").then(({ socket: _s }) => {
+        // Le passage en spectateur est déclenché par le message "killed" reçu du serveur.
+        // Cette fonction ne doit rien faire ici car enterSpectatorMode() s'en charge.
+    });
 }
 
 export function displayGameEndMessage(result) {
@@ -553,4 +554,32 @@ function renderAvatarPreview(nameEl) {
 
 function closeAvatarPanel() {
     if (avatarPanelEl) { avatarPanelEl.remove(); avatarPanelEl = null; }
+}
+
+// ── Mode Spectateur ───────────────────────────────────────────────────────────
+
+export function displaySpectatorMessage() {
+    // Affiche un écran temporaire indiquant que le joueur est mort
+    canvas.style.visibility = "hidden";
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;";
+    overlay.innerHTML = `
+        <p style="font-size:14px;color:#aaa;letter-spacing:0.15em;margin:0;font-weight:bold;">VOUS ÊTES MORT</p>
+        <p style="font-size:36px;color:white;font-weight:bold;margin:10px 0;">👻 Mode Spectateur</p>
+        <p style="font-size:16px;color:#ccc;margin:0;">Vous pouvez maintenant observer la partie librement.</p>
+        <p style="font-size:13px;color:#888;margin-top:8px;">Vous êtes invisible pour les joueurs vivants.</p>
+    `;
+    document.body.appendChild(overlay);
+
+    // Bandeau permanent indiquant le mode spectateur
+    const badge = document.createElement("div");
+    badge.id = "spectatorBadge";
+    badge.style.cssText = "position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.65);color:#aaa;font-family:Arial,sans-serif;font-size:13px;padding:6px 14px;border-radius:20px;border:1px solid #555;z-index:999;pointer-events:none;";
+    badge.textContent = "👻 Spectateur";
+    document.body.appendChild(badge);
+
+    setTimeout(() => {
+        overlay.remove();
+        canvas.style.visibility = "visible";
+    }, 3000);
 }

@@ -3,7 +3,7 @@ export const AVATARS = ["innocent", "policeman", "parasolLady", "baby", "vieu", 
 export const images = {};
 
 export function preloadImages(callback) {
-    const toLoad = ["assassin", "innocent", "petitefille", "parfumeuse", "mapImage", "policeman", "parasolLady", "baby", "vieu", "giovanni","clown"];
+    const toLoad = ["assassin", "innocent", "petitefille", "parfumeuse", "mapImage", "policeman", "parasolLady", "baby", "vieu", "giovanni","clown", "fantome"];
     let loaded = 0;
     toLoad.forEach((name) => {
         images[name] = new Image();

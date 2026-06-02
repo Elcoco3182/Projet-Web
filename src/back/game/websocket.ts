@@ -104,6 +104,7 @@ wsRouter.get("/ws", async (ctx) => {
       username,
       avatar: "innocent",
       isParfume: false,
+      dead: false, // nouveau champ
     });
     sendUpdatelobby();
   }
@@ -142,8 +143,11 @@ wsRouter.get("/ws", async (ctx) => {
   ws.onmessage = async (event) => {
     try {
       const data = JSON.parse(event.data);
+      const player = players.get(playerId);
+
       switch (data.type) {
         case "update":
+          // Un fantôme peut quand même mettre à jour sa position (il se déplace librement)
           updatePlayer(playerId, data);
           break;
         case "disconnect":
@@ -151,9 +155,13 @@ wsRouter.get("/ws", async (ctx) => {
           if (state.gameState === "lobby") sendUpdatelobby();
           break;
         case "killFromAssassin":
+          // Un mort ne peut pas tuer
+          if (player?.dead) break;
           await tryKill(playerId, data.targetId);
           break;
         case "setReady":
+          // Un mort ne peut pas se mettre ready (en lobby tout le monde est vivant, mais par sécurité)
+          if (player?.dead) break;
           setReadyPlayer(playerId);
           sendUpdatelobby();
           if (checkAllReady()) {
@@ -162,6 +170,8 @@ wsRouter.get("/ws", async (ctx) => {
           }
           break;
         case "skip":
+          // Un fantôme ne peut pas voter pour skip
+          if (player?.dead) break;
           wantSkipPlayer(playerId);
           if (checkAllWantSkip()) {
             forceSwitchDayTime();
@@ -187,14 +197,24 @@ wsRouter.get("/ws", async (ctx) => {
           break;
         }
         case "vote":
+          // Un fantôme ne peut pas voter
+          if (player?.dead) break;
           pushVote(data.vote);
-          if (votes.length === players.size + 1) {
-            checkVotesComplet();
-            resetVotes();
-            forceSwitchDayTime();
+          // Compter uniquement les votes des joueurs vivants
+          {
+            const aliveCount = Array.from(players.values()).filter((p) =>
+              !p.dead
+            ).length;
+            if (votes.length === aliveCount + 1) {
+              checkVotesComplet();
+              resetVotes();
+              forceSwitchDayTime();
+            }
           }
           break;
         case "parfume": {
+          // Un fantôme ne peut pas parfumer
+          if (player?.dead) break;
           const p = players.get(data.targetId);
           if (p) p.isParfume = true;
           break;
