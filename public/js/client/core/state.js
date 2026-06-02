@@ -18,10 +18,14 @@ export let pendingUsername = null;
 export let rejected        = false;
 export let localAvatar     = "innocent";
 
+/** true quand le joueur local est mort et passe en mode spectateur */
+export let isSpectator = false;
+
 export function setLocalJoueur(j)     { localJoueur    = j; }
 export function setPendingUsername(u) { pendingUsername = u; }
 export function setRejected(v)        { rejected        = v; }
 export function setLocalAvatar(a)     { localAvatar     = a; }
+export function setIsSpectator(v)     { isSpectator     = v; }
 
 // Cycle jour/nuit (isDawn ajouté)
 export let isMorning   = false;

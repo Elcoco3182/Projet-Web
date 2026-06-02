@@ -29,6 +29,7 @@ export type Player = {
   type?: string;
   avatar: AvatarId;
   isParfume: boolean;
+  dead: boolean; // true = fantôme spectateur
 };
 
 export type GameState = "noConnected" | "lobby" | "playing";

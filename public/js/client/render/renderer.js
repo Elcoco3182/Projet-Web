@@ -62,7 +62,8 @@ export function draw(getCurrentDayTime) {
     ctx.restore();
     drawBorder(renderOffsetX, renderOffsetY);
 
-    if (state.isNight || state.isMidnight || state.isDawn) {
+    // Le masque nuit ne s'applique pas aux spectateurs (ils voient tout)
+    if (!state.isSpectator && (state.isNight || state.isMidnight || state.isDawn)) {
         applyNightMask(screenX, screenY, 150 * state.cameraZoom);
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -105,7 +106,9 @@ function drawJoueurImage(x, y, player) {
     let localSx = 0;
     let localSy;
 
-    if (state.localJoueur.id === player.id) {
+    const isLocalPlayer = state.localJoueur.id === player.id;
+
+    if (isLocalPlayer) {
         misAjourSourceY();
         if (!state.isNoon) localSx = returnSourceX();
         localSy = state.sy;
@@ -114,6 +117,28 @@ function drawJoueurImage(x, y, player) {
         localSy = dirMap[player.d] ?? 0;
     }
 
+    // ── Fantôme (joueur mort) ──────────────────────────────────────────────────
+    // Un fantôme est visible uniquement par lui-même et par les autres fantômes.
+    // Les joueurs vivants ne voient pas les fantômes.
+    if (player.dead) {
+        // Si le spectateur local est vivant, on ne dessine pas les fantômes
+        if (!state.isSpectator) return;
+
+        ctx.save();
+        ctx.globalAlpha = 0.55; // semi-transparent pour rappeler l'effet fantôme
+        const fantomeImg = images["fantome"] || images["innocent"];
+        ctx.drawImage(fantomeImg, localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+        // Nom en gris pour les fantômes
+        ctx.globalAlpha = 0.8;
+        ctx.font = "12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#aaaaaa";
+        ctx.fillText(player.username ?? "?", x, y + 42);
+        ctx.restore();
+        return;
+    }
+
+    // ── Joueur vivant ─────────────────────────────────────────────────────────
     ctx.save();
 
     if (state.localJoueur.type == "parfumeuse" && player.isParfume) {
@@ -154,6 +179,14 @@ function drawJoueurImage(x, y, player) {
         ctx.fillText(player.username ?? "?", x, y + 42);
         ctx.fillStyle = "black";
         ctx.fillText(player.username ?? "?", x + 1, y + 43);
+    }
+
+    // Le spectateur voit aussi le vrai rôle de tous les joueurs vivants
+    if (state.isSpectator && !state.isMidnight && !state.isDawn && !state.isNight) {
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(255,100,100,0.9)";
+        ctx.fillText(`[${player.type ?? "?"}]`, x, y - 38);
     }
 
     ctx.restore();

@@ -9,30 +9,47 @@ import {
 import { API_URL, fetchWithRetry } from "../utils/fetch.ts";
 import { getRandomSpawnPoint } from "../utils/map.ts";
 
+// ==================== HELPERS : joueurs vivants ====================
+
+/** Itère uniquement sur les joueurs en vie (dead === false). */
+function alivePlayers(): Player[] {
+  const alive: Player[] = [];
+  players.forEach((p) => {
+    if (!p.dead) alive.push(p);
+  });
+  return alive;
+}
+
+import type { Player } from "./state.ts";
+
 // ==================== LOBBY ====================
 
 export function miseAjourReady() {
   state.nbReady = 0;
+  // Seuls les joueurs vivants (non-dead) comptent pour le ready en lobby
   players.forEach((player) => {
-    if (player.ready) state.nbReady += 1;
+    if (!player.dead && player.ready) state.nbReady += 1;
   });
 }
 
 export function miseAjourSkip() {
   state.nbSkip = 0;
+  // Seuls les joueurs vivants comptent pour le skip
   players.forEach((player) => {
-    if (player.skip) state.nbSkip += 1;
+    if (!player.dead && player.skip) state.nbSkip += 1;
   });
 }
 
 export function checkAllReady(): boolean {
   miseAjourReady();
-  return players.size >= 3 && state.nbReady === players.size;
+  const aliveCount = alivePlayers().length;
+  return aliveCount >= 3 && state.nbReady === aliveCount;
 }
 
 export function checkAllWantSkip(): boolean {
   miseAjourSkip();
-  return state.nbSkip === players.size;
+  const aliveCount = alivePlayers().length;
+  return aliveCount > 0 && state.nbSkip === aliveCount;
 }
 
 export function setReadyPlayer(playerId: string) {
@@ -42,15 +59,17 @@ export function setReadyPlayer(playerId: string) {
 
 export function wantSkipPlayer(playerId: string) {
   const player = players.get(playerId);
-  if (player) player.skip = true;
+  // Un fantôme ne peut pas skipper
+  if (player && !player.dead) player.skip = true;
 }
 
 export function sendUpdatelobby() {
   miseAjourReady();
+  const aliveCount = alivePlayers().length;
   const data = JSON.stringify({
     type: "lobbyUpdate",
     nbReady: state.nbReady,
-    total: players.size,
+    total: aliveCount,
   });
   sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) client.send(data);
@@ -116,16 +135,17 @@ async function giveRoleAll() {
   const tabPlayer: string[] = [];
   let i = 0;
 
-  players.forEach((player) => {
+  // N'attribuer des rôles qu'aux joueurs vivants
+  alivePlayers().forEach((player) => {
     tabPlayer[i] = player.id;
     i += 1;
-    const r1 = Math.floor(Math.random() * players.size);
-    const r2 = Math.floor(Math.random() * players.size);
+    const r1 = Math.floor(Math.random() * alivePlayers().length);
+    const r2 = Math.floor(Math.random() * alivePlayers().length);
     [tabInt[r1], tabInt[r2]] = [tabInt[r2], tabInt[r1]];
   });
 
   i = 0;
-  const rolePossible = roleSelonNbJoueur[players.size];
+  const rolePossible = roleSelonNbJoueur[alivePlayers().length];
 
   for (const playerId of tabPlayer) {
     let role = rolePossible.charAt(tabInt[i]);
@@ -239,6 +259,7 @@ export function forceSwitchDayTime() {
 }
 
 // ==================== TÉLÉPORTATIONS ====================
+// Seuls les joueurs vivants sont téléportés
 
 function tpAllJoueurNoon() {
   const placeTable = [
@@ -269,6 +290,7 @@ function tpAllJoueurNoon() {
   ];
   let i = 0;
   players.forEach((player, playerId) => {
+    if (player.dead) return; // les fantômes ne sont pas téléportés
     const spawn = placeTable[i++];
     player.x = spawn[0];
     player.y = spawn[1];
@@ -280,6 +302,7 @@ function tpAllJoueurNoon() {
 
 function tpAllJoueurMorning() {
   players.forEach((player, playerId) => {
+    if (player.dead) return;
     const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;
@@ -291,6 +314,7 @@ function tpAllJoueurMorning() {
 
 function tpAllJoueurNight() {
   players.forEach((player, playerId) => {
+    if (player.dead) return;
     const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;
@@ -314,14 +338,16 @@ export async function tryKill(attackerId: string, targetId: string) {
   const target = players.get(targetId);
   if (!attacker || !target) return;
   if (!attacker.active || !target.active) return;
+  if (attacker.dead || target.dead) return; // fantômes intouchables
   if (target.type === "assassin") return;
 
   const dx = attacker.x - target.x;
   const dy = attacker.y - target.y;
   if (Math.sqrt(dx * dx + dy * dy) > 60) return;
 
+  // Marquer comme mort au lieu de supprimer
+  target.dead = true;
   sendKilled(targetId);
-  players.delete(targetId);
 
   forceSwitchDayTime();
 
@@ -346,7 +372,8 @@ export function checkVotesComplet() {
   let draw = false;
   let execo: [string] = [""];
 
-  players.forEach((player) => {
+  // On ne vote que parmi les joueurs vivants
+  alivePlayers().forEach((player) => {
     let nbVotes = 0;
     votes.forEach((vote) => {
       if (vote === player.id) nbVotes += 1;
@@ -369,7 +396,10 @@ export function checkVotesComplet() {
   }
 
   sendVote(false, execo, elimine);
-  players.delete(elimine);
+
+  // Marquer comme mort au lieu de supprimer
+  const target = players.get(elimine);
+  if (target) target.dead = true;
 
   const result = isEndGame();
   if (result !== "continue") {
@@ -394,7 +424,8 @@ export function isEndGame(): string {
     return "continue";
   }
   let nbInnocent = 0, nbPsyco = 0;
-  players.forEach((player) => {
+  // Ne compter que les joueurs vivants
+  alivePlayers().forEach((player) => {
     if (player.type === "innocent" || player.type === "petitefille") {
       nbInnocent += 1;
     } else if (player.type === "assassin") nbPsyco += 1;
@@ -423,6 +454,7 @@ export async function closeGame() {
     const result = isEndGame();
     if (result !== "continue") broadcastGameEnd(result);
   }
+  // La partie se termine quand tous les joueurs (vivants ou non) se déconnectent
   if (
     players.size === 0 && state.gameState === "playing" && state.currentPartyId
   ) {
@@ -452,6 +484,7 @@ export function resetToLobby() {
     player.active = false;
     player.type = undefined;
     player.skip = false;
+    player.dead = false; // ressusciter pour le prochain lobby
     const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;

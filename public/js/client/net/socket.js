@@ -4,9 +4,10 @@ import {
     displayKilledMessage, displayGameEndMessage, displayErrorMessage,
     setJoueurAttributes, showVotePanel, hideVotePanel,
     displayExeco, displayKilledByVoteMessage, displayAubeToMatin,
-    displayAfternoonToNight,
+    displayAfternoonToNight, displaySpectatorMessage,
 } from "../ui/ui.js";
-import { setLocalAvatar } from "../core/state.js";
+import { setLocalAvatar, setIsSpectator } from "../core/state.js";
+import { updateZoom } from "../render/renderer.js";
 
 export const socket = new WebSocket(`wss://${location.hostname}:3000/ws`);
 
@@ -24,6 +25,8 @@ export function sendReady() {
 }
 
 export function sendSkip() {
+    // Un spectateur ne peut pas skipper
+    if (state.isSpectator) return;
     socket.send(JSON.stringify({ type: "skip" }));
 }
 
@@ -39,7 +42,10 @@ export function initSocketMessages(onOpen) {
                     `${data.nbReady}/${data.total} joueurs prêts (min. 3)`;
                 break;
             case "killed":
-                if (data.playerId === state.localJoueur.id) displayKilledMessage();
+                if (data.playerId === state.localJoueur.id) {
+                    // Passer en mode spectateur au lieu d'afficher l'écran de mort
+                    enterSpectatorMode();
+                }
                 break;
             case "playerId": {
                 const j = new Joueur(data.startX, data.startY);
@@ -57,17 +63,25 @@ export function initSocketMessages(onOpen) {
                 state.setDayTime("isMorning");
                 break;
             case "morningSpawn":
-                state.localJoueur.x = data.x;
-                state.localJoueur.y = data.y;
+                // Ne téléporter que si vivant
+                if (!state.isSpectator) {
+                    state.localJoueur.x = data.x;
+                    state.localJoueur.y = data.y;
+                }
                 break;
             case "isNoon":
                 state.setDayTime("isNoon");
-                document.getElementById("skipBtn").style.display = "block";
-                showVotePanel(state.players);
+                // Le panneau de vote n'est affiché qu'aux joueurs vivants
+                if (!state.isSpectator) {
+                    document.getElementById("skipBtn").style.display = "block";
+                    showVotePanel(state.players.filter(p => !p.dead));
+                }
                 break;
             case "noonSpawn":
-                state.localJoueur.x = data.x;
-                state.localJoueur.y = data.y;
+                if (!state.isSpectator) {
+                    state.localJoueur.x = data.x;
+                    state.localJoueur.y = data.y;
+                }
                 break;
             case "isAfternoon":
                 state.setDayTime("isAfternoon");
@@ -79,8 +93,10 @@ export function initSocketMessages(onOpen) {
                 state.setDayTime("isNight");
                 break;
             case "nightSpawn":
-                state.localJoueur.x = data.x;
-                state.localJoueur.y = data.y;
+                if (!state.isSpectator) {
+                    state.localJoueur.x = data.x;
+                    state.localJoueur.y = data.y;
+                }
                 break;
             case "isMidnight":
                 state.setDayTime("isMidnight");
@@ -143,4 +159,22 @@ export function initSocketMessages(onOpen) {
     };
 
     socket.onopen = onOpen;
+}
+
+// ── Passage en mode spectateur ────────────────────────────────────────────────
+
+function enterSpectatorMode() {
+    setIsSpectator(true);
+
+    // Marquer le joueur local comme mort côté client
+    if (state.localJoueur) state.localJoueur.dead = true;
+
+    // Masquer les contrôles de jeu
+    document.getElementById("killButton").style.display    = "none";
+    document.getElementById("parfumButton").style.display  = "none";
+    document.getElementById("skipBtn").style.display       = "none";
+    hideVotePanel();
+
+    // Afficher le message de passage en mode spectateur
+    displaySpectatorMessage();
 }

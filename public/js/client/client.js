@@ -41,25 +41,31 @@ function gameLoop(timestamp) {
     const deltaTime = lastTime === 0 ? 0 : (timestamp - lastTime) / 1000;
     lastTime = timestamp;
 
-    if (!state.localJoueur || state.localJoueur.died) return;
+    if (!state.localJoueur) return;
     if (socket.readyState !== WebSocket.OPEN) return;
 
-    // Déplacements bloqués à midi (phase vote)
-    if (!state.isNoon) {
+    // Un fantôme peut se déplacer librement (sans restriction de phase)
+    // Un joueur vivant ne peut pas bouger à midi
+    const canMove = state.isSpectator || !state.isNoon;
+
+    if (canMove) {
         if (keys.ArrowUp    || joystickInput.up)    state.localJoueur.moveUp(deltaTime);
         if (keys.ArrowDown  || joystickInput.down)  state.localJoueur.moveDown(deltaTime);
         if (keys.ArrowLeft  || joystickInput.left)  state.localJoueur.moveLeft(deltaTime);
         if (keys.ArrowRight || joystickInput.right) state.localJoueur.moveRight(deltaTime);
     }
 
-    switch(state.localJoueur.type ) {
-        case "assassin":
-            if (keys.Spacebar || joystickInput.killBoutton) state.localJoueur.tryKill(socket);
-            break;
-        case "parfumeuse":
-            if (keys.Spacebar || joystickInput.parfumButton)
-                state.localJoueur.tryParfume(socket);
-            break;
+    // Les spectateurs ne peuvent pas attaquer/parfumer
+    if (!state.isSpectator) {
+        switch(state.localJoueur.type) {
+            case "assassin":
+                if (keys.Spacebar || joystickInput.killBoutton) state.localJoueur.tryKill(socket);
+                break;
+            case "parfumeuse":
+                if (keys.Spacebar || joystickInput.parfumButton)
+                    state.localJoueur.tryParfume(socket);
+                break;
+        }
     }
 
     sendUpdate(state.localJoueur, keys, joystickInput);
@@ -83,5 +89,6 @@ window.addEventListener("resize", () => {
         canvasNight.width  = canvas.width;
         canvasNight.height = canvas.height;
     });
-    updateZoom();
+    // Si spectateur, ne pas écraser le zoom étendu
+    if (!state.isSpectator) updateZoom();
 });
