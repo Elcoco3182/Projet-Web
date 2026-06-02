@@ -26,6 +26,7 @@ Token
 ### Gameplay
 
 Le jeu se déroule en plusieurs journées divisées en 6 moments :
+
 - Le matin, après une nuit bien mouvementée
 - Le midi, le moment des votes et discutions entre joueurs
 - L'après-midi, pour parler après le vote
@@ -36,18 +37,22 @@ Le jeu se déroule en plusieurs journées divisées en 6 moments :
 ### Rôles
 
 Il y a pour l'instant 4 roles, mais bien d'autres arriveront dans le futur :
+
 - L'innocent, le villageois classique avec que ses jambes pour courir
 - l'assassin, prêt à tuer et trahir tout le monde le moment venu
-- la petite fille, elle a une très grande vision capable de repérer les assassins
+- la petite fille, elle a une très grande vision capable de repérer les
+  assassins
 - la parfumeuse, elle parfume les gens la journée pour les repérer la nuit
 
 ### Carte
 
-Il n'y a qu'une seule carte pour l'instant, celle du rez-de-chaussé du bâtiment Polytech.
+Il n'y a qu'une seule carte pour l'instant, celle du rez-de-chaussé du bâtiment
+Polytech.
 
 ### Stockage des données
 
 Toutes les données utiles sont stockés sur 5 tables de données :
+
 ```
 +--------------------------------+          +----------------------+
 |            USERS               |          |        ROLES         |
@@ -91,16 +96,22 @@ Toutes les données utiles sont stockés sur 5 tables de données :
 
 ### CI/CD
 
-Nous avons décidé de faire totalement la partie CI/CD pour pouvoir deploy directement le site web sur la VM de Corentin.
-Ainsi, tout le monde peut s'y connecter :
+Nous avons décidé de faire totalement la partie CI/CD pour pouvoir deploy
+directement le site web sur la VM de Corentin. Ainsi, tout le monde peut s'y
+connecter :
+
 1. Se connecter au wifi de Polytech
-2. Aller sur https://162.38.111.34:8080 (ne marche pas sur certain navigateur comme firefox)
+2. Aller sur https://162.38.111.34:8080 (ne marche pas sur certain navigateur
+   comme firefox)
 3. Se connecter ou s'inscrire
 4. S'amuser (si le serveur n'est pas en maintenance)
 
-Voici notre pipeline complète (le build et le deploy ne se font que sur le main). \
-En plus de ce qui été demandé, on a rajouté un test : sast qui permet de vérifier des problèmes de sécurités dans notre
-code, ce qui est un critère très important pour nous.
+Voici notre pipeline complète (le build et le deploy ne se font que sur le
+main).\
+En plus de ce qui été demandé, on a rajouté un test : sast qui permet de
+vérifier des problèmes de sécurités dans notre code, ce qui est un critère très
+important pour nous.
+
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌───────────────────┐     ┌─────────────┐
 │     LINT    │     │       TEST       │     │       BUILD       │     │   DEPLOY    │
