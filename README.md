@@ -302,7 +302,3 @@ git config core.autocrlf false
 ```
 
 Sans ça, `deno fmt --check` échouera en CI.
-
-## Licence
-
-à définir
