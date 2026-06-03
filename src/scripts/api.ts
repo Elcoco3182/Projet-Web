@@ -30,24 +30,27 @@ Deno.serve({ port: 8000 }, async (req) => {
 
     // ==================== USERS ====================
 
-    // GET /users
     if (req.method === "GET" && url.pathname === "/users") {
       const users = await query("SELECT * FROM users ORDER BY id");
       return Response.json(users);
     }
 
     // GET /users/by-username/:username
-    // Utilisé par server.ts lors du login pour récupérer le hash du mot de passe.
-    // Retourne uniquement les champs nécessaires à l'authentification (pas de données sensibles superflues).
+    // Retourne id, username, password_hash ET adminbool pour l'auth + la connexion WS.
     if (
       req.method === "GET" &&
       url.pathname.match(/^\/users\/by-username\/[^/]+$/)
     ) {
       const username = decodeURIComponent(url.pathname.split("/")[3]);
       const rows = await query<
-        { id: number; username: string; password_hash: string }
+        {
+          id: number;
+          username: string;
+          password_hash: string;
+          adminbool: boolean;
+        }
       >(
-        "SELECT id, username, password_hash FROM users WHERE username = $1",
+        "SELECT id, username, password_hash, adminbool FROM users WHERE username = $1",
         [username],
       );
       if (rows.length === 0) {
@@ -56,7 +59,6 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows[0]);
     }
 
-    // GET /users/:id
     if (req.method === "GET" && url.pathname.match(/^\/users\/\d+$/)) {
       const id = url.pathname.split("/")[2];
       const rows = await query("SELECT * FROM users WHERE id = $1", [id]);
@@ -67,8 +69,6 @@ Deno.serve({ port: 8000 }, async (req) => {
     }
 
     // POST /users/register  { username, password_hash }
-    // Appelé par server.ts lors de l'inscription. Le hachage du mot de passe est
-    // effectué dans server.ts ; api.ts ne reçoit et ne stocke jamais le mot de passe en clair.
     if (req.method === "POST" && url.pathname === "/users/register") {
       const body = await req.json();
       const { username, password_hash } = body;
@@ -82,7 +82,6 @@ Deno.serve({ port: 8000 }, async (req) => {
         return Response.json({ error: "Hash manquant" }, { status: 400 });
       }
 
-      // Vérifier si le username est déjà pris
       const existing = await query<{ id: number }>(
         "SELECT id FROM users WHERE username = $1",
         [username],
@@ -100,7 +99,6 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows[0], { status: 201 });
     }
 
-    // POST /users  { pseudo, email }
     if (req.method === "POST" && url.pathname === "/users") {
       const { pseudo, email } = await req.json();
       if (!pseudo || typeof pseudo !== "string") {
@@ -116,7 +114,6 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows[0], { status: 201 });
     }
 
-    // DELETE /users/:id
     if (req.method === "DELETE" && url.pathname.match(/^\/users\/\d+$/)) {
       const id = url.pathname.split("/")[2];
       await query("DELETE FROM users WHERE id = $1", [id]);
@@ -125,13 +122,11 @@ Deno.serve({ port: 8000 }, async (req) => {
 
     // ==================== ROLES ====================
 
-    // GET /roles
     if (req.method === "GET" && url.pathname === "/roles") {
       const roles = await query("SELECT * FROM roles ORDER BY id");
       return Response.json(roles);
     }
 
-    // POST /roles  { name }
     if (req.method === "POST" && url.pathname === "/roles") {
       const { name } = await req.json();
       if (!name || typeof name !== "string") {
@@ -144,7 +139,6 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows[0], { status: 201 });
     }
 
-    // DELETE /roles/:id
     if (req.method === "DELETE" && url.pathname.match(/^\/roles\/\d+$/)) {
       const id = url.pathname.split("/")[2];
       await query("DELETE FROM roles WHERE id = $1", [id]);
@@ -153,13 +147,11 @@ Deno.serve({ port: 8000 }, async (req) => {
 
     // ==================== PARTIES ====================
 
-    // GET /parties
     if (req.method === "GET" && url.pathname === "/parties") {
       const parties = await query("SELECT * FROM parties ORDER BY id");
       return Response.json(parties);
     }
 
-    // POST /parties  (crée une nouvelle partie)
     if (req.method === "POST" && url.pathname === "/parties") {
       const rows = await query(
         "INSERT INTO parties DEFAULT VALUES RETURNING *",
@@ -167,7 +159,6 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows[0], { status: 201 });
     }
 
-    // PATCH /parties/:id/end  (termine une partie)
     if (req.method === "PATCH" && url.pathname.match(/^\/parties\/\d+\/end$/)) {
       const id = url.pathname.split("/")[2];
       const rows = await query(
@@ -180,7 +171,6 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows[0]);
     }
 
-    // DELETE /parties/:id
     if (req.method === "DELETE" && url.pathname.match(/^\/parties\/\d+$/)) {
       const id = url.pathname.split("/")[2];
       await query("DELETE FROM parties WHERE id = $1", [id]);
@@ -189,7 +179,6 @@ Deno.serve({ port: 8000 }, async (req) => {
 
     // ==================== HISTORIQUES ====================
 
-    // GET /historiques?party_id=1  ou  /historiques?user_id=1
     if (req.method === "GET" && url.pathname === "/historiques") {
       const partyId = url.searchParams.get("party_id");
       const userId = url.searchParams.get("user_id");
@@ -197,10 +186,10 @@ Deno.serve({ port: 8000 }, async (req) => {
       if (partyId) {
         const rows = await query(
           `SELECT h.*, u.pseudo, r.name as role_name 
-                     FROM historiques h
-                     JOIN users u ON h.user_id = u.id
-                     JOIN roles r ON h.role_id = r.id
-                     WHERE h.party_id = $1`,
+           FROM historiques h
+           JOIN users u ON h.user_id = u.id
+           JOIN roles r ON h.role_id = r.id
+           WHERE h.party_id = $1`,
           [partyId],
         );
         return Response.json(rows);
@@ -209,10 +198,10 @@ Deno.serve({ port: 8000 }, async (req) => {
       if (userId) {
         const rows = await query(
           `SELECT h.*, p.started_at, r.name as role_name 
-                     FROM historiques h
-                     JOIN parties p ON h.party_id = p.id
-                     JOIN roles r ON h.role_id = r.id
-                     WHERE h.user_id = $1`,
+           FROM historiques h
+           JOIN parties p ON h.party_id = p.id
+           JOIN roles r ON h.role_id = r.id
+           WHERE h.user_id = $1`,
           [userId],
         );
         return Response.json(rows);
@@ -222,7 +211,6 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows);
     }
 
-    // POST /historiques  { user_id, party_id, role_id }
     if (req.method === "POST" && url.pathname === "/historiques") {
       const { user_id, party_id, role_id } = await req.json();
       if (!user_id || !party_id || !role_id) {
@@ -236,12 +224,7 @@ Deno.serve({ port: 8000 }, async (req) => {
     }
 
     // ==================== REFRESH TOKENS ====================
-    // 3 routes sont appelées par routes.ts (back).
-    // Elles ne sont jamais accessibles depuis le navigateur (api sur réseau interne Docker)
 
-    // POST /refresh-tokens  { user_id, token_hash }
-    // Appelé par routes.ts après un login ou register réussi
-    // Stocke le hash SHA-256 du refresh token avec une expiration de 30 jours.
     if (req.method === "POST" && url.pathname === "/refresh-tokens") {
       const body = await req.json();
       const { user_id, token_hash } = body;
@@ -254,18 +237,15 @@ Deno.serve({ port: 8000 }, async (req) => {
       }
 
       const rows = await query<{ id: number }>(
-        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-         VALUES ($1, $2, NOW() + INTERVAL '30 days')
+        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, adminbool)
+         VALUES ($1, $2, NOW() + INTERVAL '30 days',
+           (SELECT adminbool FROM users WHERE id = $1))
          RETURNING id`,
         [user_id, token_hash],
       );
       return Response.json(rows[0], { status: 201 });
     }
 
-    // GET /refresh-tokens/:tokenHash
-    // Appelé par routes.ts sur POST /refresh.
-    // Vérifie que le token existe et n'est pas expiré.
-    // Retourne le username associé pour générer un nouvel access token.
     if (
       req.method === "GET" &&
       url.pathname.match(/^\/refresh-tokens\/[^/]+$/)
@@ -282,7 +262,6 @@ Deno.serve({ port: 8000 }, async (req) => {
       );
 
       if (rows.length === 0) {
-        // Token introuvable ou expiré
         return Response.json(
           { error: "Refresh token invalide ou expiré" },
           { status: 404 },
@@ -291,20 +270,14 @@ Deno.serve({ port: 8000 }, async (req) => {
       return Response.json(rows[0]);
     }
 
-    // DELETE /refresh-tokens/:tokenHash
-    // Appelé par routes.ts sur POST /logout.
-    // Supprime le token de la base
     if (
       req.method === "DELETE" &&
       url.pathname.match(/^\/refresh-tokens\/[^/]+$/)
     ) {
       const tokenHash = decodeURIComponent(url.pathname.split("/")[2]);
-
-      await query(
-        "DELETE FROM refresh_tokens WHERE token_hash = $1",
-        [tokenHash],
-      );
-      // On retourne 200 même si le token n'existait pas — le résultat est le même
+      await query("DELETE FROM refresh_tokens WHERE token_hash = $1", [
+        tokenHash,
+      ]);
       return Response.json({ message: "Refresh token supprimé." });
     }
 

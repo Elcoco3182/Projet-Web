@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(30) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
-    admin BOOLEAN NOT NULL DEFAULT FALSE
+    adminbool BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE roles
@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,        -- hash SHA-256 du token brut
     expires_at TIMESTAMPTZ NOT NULL,        -- expiration dans 30 jours
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    adminbool BOOLEAN NOT NULL
 );
  
 -- Index pour accélérer la recherche par hash (appelée à chaque /refresh)
@@ -49,8 +50,8 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user
 
 -- Données initiales
 INSERT INTO users
-VALUES (1, 'coco', '$2a$12$7PwUKc5RkMuPGaXlbpqxc.2gE1JbljcjvpsOmYkhQvlAYBGgdvfCC'),  -- Hash de 'pasdemail + mon poivre (coco)'
-       (2, 'personne', '$2a$12$ZDAQgOpU7bQiTzPLSQZp7u.jvRpPHEXZ/mTRFiDXXHKPDdFLIEN.C');
+VALUES (1, 'coco', '$2a$12$7PwUKc5RkMuPGaXlbpqxc.2gE1JbljcjvpsOmYkhQvlAYBGgdvfCC',NOW(),TRUE),  -- Hash de 'pasdemail + mon poivre (coco)'
+       (2, 'personne', '$2a$12$7PwUKc5RkMuPGaXlbpqxc.2gE1JbljcjvpsOmYkhQvlAYBGgdvfCC',NOW(),FALSE);
 
 INSERT INTO roles
 VALUES (1, 'innocent'),

@@ -4,13 +4,7 @@ import { socket } from "../net/socket.js";
 import { AVATARS, images } from "../render/assets.js";
 
 export function displayKilledMessage() {
-    // Conservée pour compatibilité. La mort est gérée via enterSpectatorMode() dans socket.js.
-    // Appelée depuis displayKilledByVoteMessage si le joueur local est éliminé par vote.
-    // Dans ce cas on délègue au mode spectateur.
-    import("../net/socket.js").then(({ socket: _s }) => {
-        // Le passage en spectateur est déclenché par le message "killed" reçu du serveur.
-        // Cette fonction ne doit rien faire ici car enterSpectatorMode() s'en charge.
-    });
+    import("../net/socket.js").then(({ socket: _s }) => {});
 }
 
 export function displayGameEndMessage(result) {
@@ -24,8 +18,8 @@ export function displayGameEndMessage(result) {
     const roleColor = { assassin: "#ef5350", innocent: "#4fc3f7", petitefille: "#ce93d8", parfumeuse: "#e32b4a" };
 
     const winners = state.players.filter((p) => {
-        if (result === "vicInno")   return p.type === "innocent" || p.type === "petitefille";
-        if (result === "vicPsyco")  return p.type === "assassin";
+        if (result === "vicInno")  return p.type === "innocent" || p.type === "petitefille";
+        if (result === "vicPsyco") return p.type === "assassin";
         return false;
     });
 
@@ -272,7 +266,6 @@ export function displayAubeToMatin() {
     }
     requestAnimationFrame(animate);
 }
-// ── Cinématique Nuit ──────────────────────────────────────────────────────────
 
 export function displayAfternoonToNight() {
     canvas.style.visibility = "hidden";
@@ -297,7 +290,6 @@ export function displayAfternoonToNight() {
 
     function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
 
-    // Même silhouette bâtiment que l'aube, réutilisée
     function drawBuilding(progress) {
         const scale = Math.min(W, H) / 420;
         const bx = W * 0.5 - 110 * scale;
@@ -309,7 +301,6 @@ export function displayAfternoonToNight() {
         c.fillRect(0, -90*scale, 130*scale, 90*scale);
         c.fillRect(-40*scale, -55*scale, 44*scale, 55*scale);
         c.fillRect(-4*scale, -95*scale, 138*scale, 8*scale);
-        // Fenêtres allumées (jaune chaud)
         c.fillStyle = `rgba(255,200,80,${progress * 0.85})`;
         for (let i = 0; i < 4; i++) {
             c.fillRect((10+i*28)*scale, -78*scale, 18*scale, 14*scale);
@@ -320,7 +311,6 @@ export function displayAfternoonToNight() {
         c.fillRect(128*scale, -85*scale, 10*scale, 85*scale);
         c.fillRect(213*scale, -45*scale, 55*scale, 45*scale);
         c.fillRect(265*scale, -30*scale, 30*scale, 30*scale);
-        // Arbres
         c.fillStyle = `rgba(5,18,8,${silAlpha})`;
         for (let i = 0; i < 8; i++) { c.beginPath(); c.arc((i*38-10)*scale, 0, (12+Math.sin(i*1.7)*4)*scale, Math.PI, 0); c.fill(); }
         c.restore();
@@ -329,7 +319,6 @@ export function displayAfternoonToNight() {
     function drawStars(progress) {
         const count = 60;
         for (let i = 0; i < count; i++) {
-            // Positions stables (seed par index)
             const px = ((i * 137.508 + 42) % W);
             const py = ((i * 93.731 + 17) % (horizonY * 0.9));
             const blink = Math.abs(Math.sin(i * 2.3 + Date.now() * 0.001));
@@ -344,52 +333,33 @@ export function displayAfternoonToNight() {
 
     function drawFrame(progress) {
         c.clearRect(0, 0, W, H);
-
-        // Ciel : bleu jour → bleu nuit profond
         const r = Math.round(100 - progress * 95);
         const g = Math.round(140 - progress * 130);
         const b = Math.round(200 - progress * 160);
         c.fillStyle = `rgb(${r},${g},${b})`;
         c.fillRect(0, 0, W, H);
-
-        // Bande horizon qui s'assombrit (orange → violet → noir)
         c.save(); c.globalAlpha = 1 - progress * 0.8;
         c.fillStyle = `rgb(${Math.round(220 - progress*200)},${Math.round(100 - progress*90)},40)`;
         c.fillRect(0, horizonY - H*0.12, W, H*0.12); c.restore();
-
-        // Sol
         c.fillStyle = `rgb(${Math.round(15 - progress*5)},${Math.round(25 - progress*10)},${Math.round(12 - progress*4)})`;
         c.fillRect(0, horizonY, W, H - horizonY);
-
-        // Lune qui monte
         const moonR = Math.min(W, H) * 0.055;
         const moonX = W * 0.28;
         const moonStartY = horizonY + moonR * 1.5;
         const moonEndY   = horizonY * 0.25;
         const moonY = moonStartY + (moonEndY - moonStartY) * easeOut(progress);
-
-        // Halo lune
         c.beginPath(); c.arc(moonX, moonY, moonR * (2.5 + progress * 0.5), 0, Math.PI*2);
         c.fillStyle = `rgba(180,190,255,${progress * 0.18})`; c.fill();
-
-        // Corps lune
         c.beginPath(); c.arc(moonX, moonY, moonR, 0, Math.PI*2);
         c.fillStyle = `rgba(230,235,255,${Math.min(1, progress * 1.5)})`; c.fill();
-
-        // Cache le bas de la lune sous l'horizon
         c.save(); c.beginPath(); c.rect(0, horizonY, W, H - horizonY); c.clip();
         c.beginPath(); c.arc(moonX, moonY, moonR, 0, Math.PI*2);
         c.fillStyle = `rgb(${Math.round(15 - progress*5)},${Math.round(25 - progress*10)},${Math.round(12 - progress*4)})`; c.fill();
         c.restore();
-
         drawStars(progress);
         drawBuilding(progress);
-
-        // Ligne horizon
         c.strokeStyle = `rgba(100,100,180,${Math.min(1, progress*3)*0.3})`; c.lineWidth = 1.5;
         c.beginPath(); c.moveTo(0, horizonY); c.lineTo(W, horizonY); c.stroke();
-
-        // Messages
         const m1 = document.getElementById("_nuitMsg1");
         const bg  = document.getElementById("_nuitBg");
         if (progress > 0.35) { const a = Math.min(1,(progress-0.35)/0.3); if(m1) m1.style.color=`rgba(180,180,255,${a})`; if(bg) bg.style.background=`rgba(0,0,0,${a*0.5})`; }
@@ -407,37 +377,24 @@ export function displayAfternoonToNight() {
 
 export function displayParfume(ctx, x, y) {
     const now = Date.now();
-    
-    // 3 particules décalées dans le temps
     const particles = [
-        { offset: 0,      phase: 0 },
-        { offset: 800,    phase: 2.1 },
-        { offset: 1600,   phase: 4.2 },
+        { offset: 0,    phase: 0   },
+        { offset: 800,  phase: 2.1 },
+        { offset: 1600, phase: 4.2 },
     ];
-
     particles.forEach(({ offset, phase }) => {
-        const t = ((now + offset) % 2400) / 2400; // cycle de 2.4s
-
-        // Monte de y-32 à y-80
+        const t = ((now + offset) % 2400) / 2400;
         const py = (y - 32) - t * 48;
-        // Ondulation horizontale douce
         const px = x + Math.sin(t * Math.PI * 2 + phase) * 6;
-        // Apparaît puis disparaît
-        const alpha = t < 0.3
-            ? t / 0.3
-            : (t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1);
-        // Grossit légèrement
+        const alpha = t < 0.3 ? t / 0.3 : (t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1);
         const radius = 10 + t * 3;
-
         ctx.save();
         ctx.globalAlpha = alpha * 0.85;
         const grad = ctx.createRadialGradient(px, py, 0, px, py, radius);
-        grad.addColorStop(0,   "rgba(255, 60, 154, 1)");
-        grad.addColorStop(1,   "rgba(255, 100, 180, 0)");
+        grad.addColorStop(0, "rgba(255, 60, 154, 1)");
+        grad.addColorStop(1, "rgba(255, 100, 180, 0)");
         ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(px, py, radius, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(px, py, radius, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     });
 }
@@ -459,9 +416,10 @@ let avatarPanelEl    = null;
 let avatarCanvasEl   = null;
 
 export function showAvatarPanel() {
-    if (avatarPanelEl) return; // déjà ouvert
+    // Désactivé pour les admins
+    if (state.isAdmin) return;
+    if (avatarPanelEl) return;
 
-    // index de départ = avatar actuel
     const currentIdx = AVATARS.indexOf(state.localAvatar);
     avatarPanelIndex = currentIdx >= 0 ? currentIdx : 0;
 
@@ -479,7 +437,6 @@ export function showAvatarPanel() {
     title.textContent = "Choisir un avatar";
     title.style.cssText = "font-weight:bold;font-size:15px;margin:0;color:#222;";
 
-    // Canvas de preview (affiche le sprite)
     avatarCanvasEl = document.createElement("canvas");
     avatarCanvasEl.width  = 64;
     avatarCanvasEl.height = 64;
@@ -489,12 +446,11 @@ export function showAvatarPanel() {
     nameEl.id = "avatarName";
     nameEl.style.cssText = "font-size:13px;color:#555;margin:0;";
 
-    // Flèches + canvas
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:center;gap:14px;";
 
-    const btnLeft = document.createElement("button");
-    btnLeft.textContent = "◀";
+    const btnLeft  = document.createElement("button");
+    btnLeft.textContent  = "◀";
     btnLeft.style.cssText = "font-size:20px;background:none;border:none;cursor:pointer;color:#333;padding:4px 8px;margin:0;";
 
     const btnRight = document.createElement("button");
@@ -506,7 +462,6 @@ export function showAvatarPanel() {
 
     row.append(btnLeft, avatarCanvasEl, btnRight);
 
-    // Boutons Confirmer / Annuler
     const btnRow = document.createElement("div");
     btnRow.style.cssText = "display:flex;gap:10px;";
 
@@ -529,7 +484,6 @@ export function showAvatarPanel() {
     btnRow.append(btnConfirm, btnCancel);
     avatarPanelEl.append(title, row, nameEl, btnRow);
     document.body.appendChild(avatarPanelEl);
-
     renderAvatarPreview(nameEl);
 }
 
@@ -540,15 +494,11 @@ function renderAvatarPreview(nameEl) {
     ctx2.clearRect(0, 0, 64, 64);
     const img = images[key];
     if (img && img.complete && img.naturalWidth > 0) {
-        // Affiche la frame de face (sy=0, sx=0) du sprite sheet
         ctx2.drawImage(img, 0, 0, 64, 64, 0, 0, 64, 64);
     } else {
-        ctx2.fillStyle = "#ccc";
-        ctx2.fillRect(0, 0, 64, 64);
-        ctx2.fillStyle = "#888";
-        ctx2.font = "11px Arial";
-        ctx2.textAlign = "center";
-        ctx2.fillText("?", 32, 36);
+        ctx2.fillStyle = "#ccc"; ctx2.fillRect(0, 0, 64, 64);
+        ctx2.fillStyle = "#888"; ctx2.font = "11px Arial";
+        ctx2.textAlign = "center"; ctx2.fillText("?", 32, 36);
     }
 }
 
@@ -559,7 +509,6 @@ function closeAvatarPanel() {
 // ── Mode Spectateur ───────────────────────────────────────────────────────────
 
 export function displaySpectatorMessage() {
-    // Affiche un écran temporaire indiquant que le joueur est mort
     canvas.style.visibility = "hidden";
     const overlay = document.createElement("div");
     overlay.style.cssText = "position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;";
@@ -571,7 +520,6 @@ export function displaySpectatorMessage() {
     `;
     document.body.appendChild(overlay);
 
-    // Bandeau permanent indiquant le mode spectateur
     const badge = document.createElement("div");
     badge.id = "spectatorBadge";
     badge.style.cssText = "position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.65);color:#aaa;font-family:Arial,sans-serif;font-size:13px;padding:6px 14px;border-radius:20px;border:1px solid #555;z-index:999;pointer-events:none;";
@@ -582,4 +530,163 @@ export function displaySpectatorMessage() {
         overlay.remove();
         canvas.style.visibility = "visible";
     }, 3000);
+}
+
+// ── Panneau Admin ─────────────────────────────────────────────────────────────
+
+let adminPanelEl       = null;
+let adminListEl        = null;
+let adminSelectedId    = null;
+let adminSelectedDead  = false;
+
+export function showAdminPanel() {
+    if (adminPanelEl) return;
+
+    // Badge admin permanent
+    const badge = document.createElement("div");
+    badge.style.cssText = "position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.75);color:#ffcc00;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;padding:6px 14px;border-radius:20px;border:1px solid #ffcc0066;z-index:999;pointer-events:none;";
+    badge.textContent = "👑 Admin";
+    document.body.appendChild(badge);
+
+    adminPanelEl = document.createElement("div");
+    adminPanelEl.id = "adminPanel";
+    adminPanelEl.style.cssText = [
+        "position:fixed;right:12px;top:50%;transform:translateY(-50%);",
+        "width:175px;background:rgba(255,255,255,0.95);",
+        "border:1px solid rgba(0,0,0,0.15);border-radius:10px;",
+        "padding:10px 8px;display:flex;flex-direction:column;gap:6px;",
+        "font-family:Arial,sans-serif;z-index:500;",
+        "box-shadow:0 4px 20px rgba(0,0,0,0.2);",
+    ].join("");
+
+    const header = document.createElement("p");
+    header.style.cssText = "font-size:11px;color:#888;text-align:center;margin:0;font-weight:bold;letter-spacing:0.05em;";
+    header.textContent = "👑 PANNEAU ADMIN";
+
+    adminListEl = document.createElement("div");
+    adminListEl.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;";
+
+    // Boutons d'action
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display:flex;gap:6px;margin-top:4px;";
+
+    const btnKill = document.createElement("button");
+    btnKill.id = "adminBtnKill";
+    btnKill.textContent = "⚔️ Tuer";
+    btnKill.style.cssText = "flex:1;padding:5px 0;border-radius:6px;border:1px solid #fca5a5;background:#fee2e2;color:#b91c1c;font-size:12px;cursor:pointer;margin:0;";
+    btnKill.disabled = true;
+
+    const btnKick = document.createElement("button");
+    btnKick.id = "adminBtnKick";
+    btnKick.textContent = "🚪 Kick";
+    btnKick.style.cssText = "flex:1;padding:5px 0;border-radius:6px;border:1px solid #ccc;background:white;color:#555;font-size:12px;cursor:pointer;margin:0;";
+    btnKick.disabled = true;
+
+    btnKill.addEventListener("click", () => {
+        if (!adminSelectedId || adminSelectedDead) return;
+        socket.send(JSON.stringify({ type: "adminKill", targetId: adminSelectedId }));
+        adminSelectedId = null;
+        adminSelectedDead = false;
+        btnKill.disabled = true;
+        btnKick.disabled = true;
+        document.querySelectorAll("#adminPanel .admin-player-option")
+            .forEach((o) => o.classList.remove("selected"));
+    });
+
+    btnKick.addEventListener("click", () => {
+        if (!adminSelectedId) return;
+        socket.send(JSON.stringify({ type: "adminKick", targetId: adminSelectedId }));
+        adminSelectedId = null;
+        adminSelectedDead = false;
+        btnKill.disabled = true;
+        btnKick.disabled = true;
+        document.querySelectorAll("#adminPanel .admin-player-option")
+            .forEach((o) => o.classList.remove("selected"));
+    });
+
+    btnRow.append(btnKill, btnKick);
+    adminPanelEl.append(header, adminListEl, btnRow);
+    document.body.appendChild(adminPanelEl);
+}
+
+/**
+ * Met à jour la liste des joueurs dans le panneau admin.
+ * Appelé à chaque message "update" reçu du serveur quand isAdmin=true.
+ */
+export function updateAdminPanel(players) {
+    if (!adminListEl) return;
+
+    // Conserver la sélection courante
+    const prevSelected = adminSelectedId;
+
+    adminListEl.innerHTML = "";
+    adminSelectedId    = null;
+    adminSelectedDead  = false;
+
+    players
+        .filter((p) => {
+            // Ne pas lister l'admin lui-même
+            if (state.localJoueur && p.id === state.localJoueur.id) return false;
+            return true;
+        })
+        .sort((a, b) => {
+            // Vivants d'abord, morts ensuite, admins à la fin
+            if (a.isAdmin !== b.isAdmin) return a.isAdmin ? 1 : -1;
+            if (a.dead !== b.dead) return a.dead ? 1 : -1;
+            return (a.username ?? "").localeCompare(b.username ?? "");
+        })
+        .forEach((p) => {
+            const el = document.createElement("div");
+            el.className = "admin-player-option";
+
+            let statusIcon = "🟢"; // vivant
+            let nameColor  = "#333";
+            if (p.isAdmin)  { statusIcon = "👑"; nameColor = "#b45309"; }
+            else if (p.dead){ statusIcon = "👻"; nameColor = "#999"; }
+
+            el.style.cssText = [
+                "display:flex;align-items:center;gap:6px;",
+                "padding:5px 7px;border-radius:6px;",
+                "border:1px solid transparent;cursor:pointer;",
+                `background:${p.isAdmin ? "#fefce8" : "#f5f5f5"};`,
+            ].join("");
+
+            el.innerHTML = `<span style="font-size:13px;">${statusIcon}</span><span style="font-size:12px;color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.username ?? "?"}</span>`;
+
+            // Un autre admin n'est pas sélectionnable
+            if (!p.isAdmin) {
+                el.addEventListener("click", () => {
+                    document.querySelectorAll("#adminPanel .admin-player-option")
+                        .forEach((o) => o.classList.remove("selected"));
+                    el.classList.add("selected");
+                    el.style.borderColor = "#a0c4e8";
+                    el.style.background  = "#eaf3fb";
+
+                    adminSelectedId   = p.id;
+                    adminSelectedDead = p.dead;
+
+                    const btnKill = document.getElementById("adminBtnKill");
+                    const btnKick = document.getElementById("adminBtnKick");
+
+                    // Kill désactivé si la cible est déjà morte (spectateur) ou si pas en jeu
+                    btnKill.disabled = p.dead || adminSelectedId === null;
+                    btnKick.disabled = false;
+                });
+            }
+
+            // Restaurer la sélection précédente
+            if (p.id === prevSelected && !p.isAdmin) {
+                adminSelectedId   = p.id;
+                adminSelectedDead = p.dead;
+                el.classList.add("selected");
+                el.style.borderColor = "#a0c4e8";
+                el.style.background  = "#eaf3fb";
+                const btnKill = document.getElementById("adminBtnKill");
+                const btnKick = document.getElementById("adminBtnKick");
+                if (btnKill) btnKill.disabled = p.dead;
+                if (btnKick) btnKick.disabled = false;
+            }
+
+            adminListEl.appendChild(el);
+        });
 }

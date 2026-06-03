@@ -9,13 +9,13 @@ import {
 import { API_URL, fetchWithRetry } from "../utils/fetch.ts";
 import { getRandomSpawnPoint } from "../utils/map.ts";
 
-// ==================== HELPERS : joueurs vivants ====================
+// ==================== HELPERS ====================
 
-/** Itère uniquement sur les joueurs en vie (dead === false). */
+/** Joueurs vivants ET non-admin (participent au jeu). */
 function alivePlayers(): Player[] {
   const alive: Player[] = [];
   players.forEach((p) => {
-    if (!p.dead) alive.push(p);
+    if (!p.dead && !p.isAdmin) alive.push(p);
   });
   return alive;
 }
@@ -26,17 +26,16 @@ import type { Player } from "./state.ts";
 
 export function miseAjourReady() {
   state.nbReady = 0;
-  // Seuls les joueurs vivants (non-dead) comptent pour le ready en lobby
+  // Seuls les joueurs vivants non-admin comptent pour le ready
   players.forEach((player) => {
-    if (!player.dead && player.ready) state.nbReady += 1;
+    if (!player.dead && !player.isAdmin && player.ready) state.nbReady += 1;
   });
 }
 
 export function miseAjourSkip() {
   state.nbSkip = 0;
-  // Seuls les joueurs vivants comptent pour le skip
   players.forEach((player) => {
-    if (!player.dead && player.skip) state.nbSkip += 1;
+    if (!player.dead && !player.isAdmin && player.skip) state.nbSkip += 1;
   });
 }
 
@@ -59,8 +58,7 @@ export function setReadyPlayer(playerId: string) {
 
 export function wantSkipPlayer(playerId: string) {
   const player = players.get(playerId);
-  // Un fantôme ne peut pas skipper
-  if (player && !player.dead) player.skip = true;
+  if (player && !player.dead && !player.isAdmin) player.skip = true;
 }
 
 export function sendUpdatelobby() {
@@ -135,7 +133,7 @@ async function giveRoleAll() {
   const tabPlayer: string[] = [];
   let i = 0;
 
-  // N'attribuer des rôles qu'aux joueurs vivants
+  // N'attribuer des rôles qu'aux joueurs vivants non-admin
   alivePlayers().forEach((player) => {
     tabPlayer[i] = player.id;
     i += 1;
@@ -195,6 +193,15 @@ async function giveRoleAll() {
     }
     console.log(`Joueur ${playerId} enregistré avec le rôle ${role}`);
   }
+
+  // Notifier les admins que la partie a commencé (sans rôle)
+  players.forEach((player, playerId) => {
+    if (!player.isAdmin) return;
+    const sock = sockets.get(playerId);
+    if (sock?.readyState === WebSocket.OPEN) {
+      sock.send(JSON.stringify({ type: "adminGameStart" }));
+    }
+  });
 }
 
 // ==================== CYCLE JOUR/NUIT ====================
@@ -259,7 +266,6 @@ export function forceSwitchDayTime() {
 }
 
 // ==================== TÉLÉPORTATIONS ====================
-// Seuls les joueurs vivants sont téléportés
 
 function tpAllJoueurNoon() {
   const placeTable = [
@@ -290,7 +296,7 @@ function tpAllJoueurNoon() {
   ];
   let i = 0;
   players.forEach((player, playerId) => {
-    if (player.dead) return; // les fantômes ne sont pas téléportés
+    if (player.dead || player.isAdmin) return; // admins non téléportés
     const spawn = placeTable[i++];
     player.x = spawn[0];
     player.y = spawn[1];
@@ -302,7 +308,7 @@ function tpAllJoueurNoon() {
 
 function tpAllJoueurMorning() {
   players.forEach((player, playerId) => {
-    if (player.dead) return;
+    if (player.dead || player.isAdmin) return;
     const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;
@@ -314,7 +320,7 @@ function tpAllJoueurMorning() {
 
 function tpAllJoueurNight() {
   players.forEach((player, playerId) => {
-    if (player.dead) return;
+    if (player.dead || player.isAdmin) return;
     const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;
@@ -338,14 +344,13 @@ export async function tryKill(attackerId: string, targetId: string) {
   const target = players.get(targetId);
   if (!attacker || !target) return;
   if (!attacker.active || !target.active) return;
-  if (attacker.dead || target.dead) return; // fantômes intouchables
+  if (attacker.dead || target.dead) return;
   if (target.type === "assassin") return;
 
   const dx = attacker.x - target.x;
   const dy = attacker.y - target.y;
   if (Math.sqrt(dx * dx + dy * dy) > 60) return;
 
-  // Marquer comme mort au lieu de supprimer
   target.dead = true;
   sendKilled(targetId);
 
@@ -356,6 +361,41 @@ export async function tryKill(attackerId: string, targetId: string) {
     broadcastGameEnd(result);
     await closeGame();
   }
+}
+
+// ==================== ADMIN : KILL / KICK ====================
+
+/** Un admin tue un joueur vivant (ignoré si admin ou déjà mort). */
+export async function adminKill(targetId: string) {
+  const target = players.get(targetId);
+  if (!target || target.dead || target.isAdmin) return;
+
+  target.dead = true;
+  sendKilled(targetId);
+
+  if (state.gameState === "playing") {
+    forceSwitchDayTime();
+    const result = isEndGame();
+    if (result !== "continue") {
+      broadcastGameEnd(result);
+      await closeGame();
+    }
+  }
+}
+
+/** Un admin kick un joueur (vivant ou mort, mais pas un autre admin). */
+export function adminKick(targetId: string) {
+  const target = players.get(targetId);
+  if (!target || target.isAdmin) return;
+
+  const sock = sockets.get(targetId);
+  if (sock) {
+    sock.send(JSON.stringify({ type: "kicked" }));
+    sock.close(1008, "Kicked by admin");
+  }
+  players.delete(targetId);
+  sockets.delete(targetId);
+  sendUpdatelobby();
 }
 
 export function removeParfume() {
@@ -372,7 +412,6 @@ export function checkVotesComplet() {
   let draw = false;
   let execo: [string] = [""];
 
-  // On ne vote que parmi les joueurs vivants
   alivePlayers().forEach((player) => {
     let nbVotes = 0;
     votes.forEach((vote) => {
@@ -397,7 +436,6 @@ export function checkVotesComplet() {
 
   sendVote(false, execo, elimine);
 
-  // Marquer comme mort au lieu de supprimer
   const target = players.get(elimine);
   if (target) target.dead = true;
 
@@ -420,11 +458,9 @@ function sendVote(draw: boolean, tabExeco?: [string], player?: string) {
 // ==================== FIN DE PARTIE ====================
 
 export function isEndGame(): string {
-  if (state.finDePartie) {
-    return "continue";
-  }
+  if (state.finDePartie) return "continue";
   let nbInnocent = 0, nbPsyco = 0;
-  // Ne compter que les joueurs vivants
+  // Ne compter que les joueurs vivants non-admin
   alivePlayers().forEach((player) => {
     if (player.type === "innocent" || player.type === "petitefille") {
       nbInnocent += 1;
@@ -454,7 +490,6 @@ export async function closeGame() {
     const result = isEndGame();
     if (result !== "continue") broadcastGameEnd(result);
   }
-  // La partie se termine quand tous les joueurs (vivants ou non) se déconnectent
   if (
     players.size === 0 && state.gameState === "playing" && state.currentPartyId
   ) {
@@ -484,10 +519,12 @@ export function resetToLobby() {
     player.active = false;
     player.type = undefined;
     player.skip = false;
-    player.dead = false; // ressusciter pour le prochain lobby
-    const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
-    player.x = spawn.x;
-    player.y = spawn.y;
+    player.dead = false;
+    if (!player.isAdmin) {
+      const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
+      player.x = spawn.x;
+      player.y = spawn.y;
+    }
   });
 
   state.isMorning = false;
