@@ -30,6 +30,7 @@ export type Player = {
   avatar: AvatarId;
   isParfume: boolean;
   dead: boolean; // true = fantôme spectateur
+  isAdmin: boolean; // true = compte admin, toujours hors jeu
 };
 
 export type GameState = "noConnected" | "lobby" | "playing";
@@ -93,17 +94,6 @@ export const phaseDurations = {
   isMidnight: 40_000,
   isDawn: 30_000,
 };
-
-/*
-export const phaseDurations = {
-  isMorning: 8_000,
-  isNoon: 120_000,
-  isAfternoon: 10_000,
-  isNight: 10_000,
-  isMidnight: 45_000,
-  isDawn: 5_000,
-};
-*/
 
 // ==================== DIMENSIONS DE LA CARTE ====================
 

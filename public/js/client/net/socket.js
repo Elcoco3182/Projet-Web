@@ -5,8 +5,9 @@ import {
     setJoueurAttributes, showVotePanel, hideVotePanel,
     displayExeco, displayKilledByVoteMessage, displayAubeToMatin,
     displayAfternoonToNight, displaySpectatorMessage,
+    showAdminPanel, updateAdminPanel,
 } from "../ui/ui.js";
-import { setLocalAvatar, setIsSpectator } from "../core/state.js";
+import { setLocalAvatar, setIsSpectator, setIsAdmin } from "../core/state.js";
 import { updateZoom } from "../render/renderer.js";
 
 export const socket = new WebSocket(`wss://${location.hostname}:3000/ws`);
@@ -21,12 +22,12 @@ export function sendUpdate(localJoueur, keys, joystickInput) {
 }
 
 export function sendReady() {
+    if (state.isAdmin) return; // un admin ne peut pas se mettre ready
     socket.send(JSON.stringify({ type: "setReady" }));
 }
 
 export function sendSkip() {
-    // Un spectateur ne peut pas skipper
-    if (state.isSpectator) return;
+    if (state.isSpectator || state.isAdmin) return;
     socket.send(JSON.stringify({ type: "skip" }));
 }
 
@@ -38,47 +39,68 @@ export function initSocketMessages(onOpen) {
                 state.setPlayers(data.players);
                 break;
             case "lobbyUpdate":
-                document.getElementById("lobbyCount").innerText =
-                    `${data.nbReady}/${data.total} joueurs prêts (min. 3)`;
+                if (!state.isAdmin) {
+                    document.getElementById("lobbyCount").innerText =
+                        `${data.nbReady}/${data.total} joueurs prêts (min. 3)`;
+                }
                 break;
             case "killed":
                 if (data.playerId === state.localJoueur.id) {
-                    // Passer en mode spectateur au lieu d'afficher l'écran de mort
-                    enterSpectatorMode();
+                    if (!state.isAdmin) enterSpectatorMode();
+                    // Un admin ne peut pas être tué
                 }
+                break;
+            case "kicked":
+                // Ce client a été expulsé par un admin
+                displayErrorMessage("Vous avez été expulsé par un administrateur.");
                 break;
             case "playerId": {
                 const j = new Joueur(data.startX, data.startY);
                 j.id = data.playerId;
                 if (state.pendingUsername) j.username = state.pendingUsername;
                 state.setLocalJoueur(j);
+
+                // Appliquer le statut admin dès la connexion
+                if (data.isAdmin) {
+                    setIsAdmin(true);
+                    setIsSpectator(true); // admin = toujours spectateur
+                    j.isAdmin = true;
+                    j.dead    = true;
+                    // Forcer l'avatar admin côté local
+                    setLocalAvatar("admin");
+                    j.avatar = "admin";
+                    // Masquer les contrôles joueur, afficher le panneau admin
+                    document.getElementById("readyBtn").style.display   = "none";
+                    document.getElementById("skipBtn").style.display    = "none";
+                    document.getElementById("avatarBtn").style.display  = "none";
+                    document.getElementById("lobbyCount").style.display = "none";
+                    showAdminPanel();
+                }
                 break;
             }
             case "mapSize":
                 state.setMapSize(data.width, data.height);
                 break;
             case "isMorning":
-                socket.send(JSON.stringify({ type: "unParfume"}));
+                socket.send(JSON.stringify({ type: "unParfume" }));
                 displayAubeToMatin();
                 state.setDayTime("isMorning");
                 break;
             case "morningSpawn":
-                // Ne téléporter que si vivant
-                if (!state.isSpectator) {
+                if (!state.isSpectator && !state.isAdmin) {
                     state.localJoueur.x = data.x;
                     state.localJoueur.y = data.y;
                 }
                 break;
             case "isNoon":
                 state.setDayTime("isNoon");
-                // Le panneau de vote n'est affiché qu'aux joueurs vivants
-                if (!state.isSpectator) {
+                if (!state.isSpectator && !state.isAdmin) {
                     document.getElementById("skipBtn").style.display = "block";
-                    showVotePanel(state.players.filter(p => !p.dead));
+                    showVotePanel(state.players.filter(p => !p.dead && !p.isAdmin));
                 }
                 break;
             case "noonSpawn":
-                if (!state.isSpectator) {
+                if (!state.isSpectator && !state.isAdmin) {
                     state.localJoueur.x = data.x;
                     state.localJoueur.y = data.y;
                 }
@@ -93,7 +115,7 @@ export function initSocketMessages(onOpen) {
                 state.setDayTime("isNight");
                 break;
             case "nightSpawn":
-                if (!state.isSpectator) {
+                if (!state.isSpectator && !state.isAdmin) {
                     state.localJoueur.x = data.x;
                     state.localJoueur.y = data.y;
                 }
@@ -105,18 +127,28 @@ export function initSocketMessages(onOpen) {
                 state.setDayTime("isDawn");
                 break;
             case "gameStart":
-                setJoueurAttributes(state.localJoueur, data.role);
-                if (data.startX !== undefined) {
-                    state.localJoueur.x = data.startX;
-                    state.localJoueur.y = data.startY;
+                if (!state.isAdmin) {
+                    setJoueurAttributes(state.localJoueur, data.role);
+                    if (data.startX !== undefined) {
+                        state.localJoueur.x = data.startX;
+                        state.localJoueur.y = data.startY;
+                    }
+                    document.getElementById("readyBtn").style.display  = "none";
+                    document.getElementById("lobbyCount").style.display = "none";
+                    document.getElementById("dayTime").style.visibility = "visible";
+                    document.getElementById("avatarBtn").style.display  = "none";
                 }
-                document.getElementById("readyBtn").style.display = "none";
-                document.getElementById("lobbyCount").style.display = "none";
+                break;
+            case "adminGameStart":
+                // La partie démarre pour l'admin (afficher dayTime, cacher le reste)
                 document.getElementById("dayTime").style.visibility = "visible";
-                document.getElementById("avatarBtn").style.display = "none";
+                break;
+            case "adminInit":
+                // Reçu à la connexion de l'admin — mise à jour initiale du panneau
+                updateAdminPanel(data.players);
                 break;
             case "rejected":
-                document.getElementById("popup").style.display = "none";
+                document.getElementById("popup").style.display     = "none";
                 document.getElementById("lobbyCount").style.display = "none";
                 state.setRejected(true);
                 break;
@@ -131,11 +163,9 @@ export function initSocketMessages(onOpen) {
                 state.setObstacles(data.obstacles);
                 break;
             case "avatarUpdate": {
-                // Mettre à jour l'avatar du joueur dans la liste locale
                 const p = state.players.find((pl) => pl.id === data.playerId);
                 if (p) p.avatar = data.avatar;
-                // Si c'est notre propre joueur, sync localAvatar aussi
-                if (state.localJoueur && data.playerId === state.localJoueur.id) {
+                if (state.localJoueur && data.playerId === state.localJoueur.id && !state.isAdmin) {
                     setLocalAvatar(data.avatar);
                 }
                 break;
@@ -146,7 +176,6 @@ export function initSocketMessages(onOpen) {
     socket.onerror  = (error) => displayErrorMessage("WebSocket error: " + error.message);
 
     socket.onclose  = (event) => {
-        // code 1006 = connexion refusée / échec réseau (403 avant upgrade)
         if (event.code === 1006) {
             displayErrorMessage("Partie pleine ou déjà en cours.");
             return;
@@ -165,16 +194,10 @@ export function initSocketMessages(onOpen) {
 
 function enterSpectatorMode() {
     setIsSpectator(true);
-
-    // Marquer le joueur local comme mort côté client
     if (state.localJoueur) state.localJoueur.dead = true;
-
-    // Masquer les contrôles de jeu
-    document.getElementById("killButton").style.display    = "none";
-    document.getElementById("parfumButton").style.display  = "none";
-    document.getElementById("skipBtn").style.display       = "none";
+    document.getElementById("killButton").style.display   = "none";
+    document.getElementById("parfumButton").style.display = "none";
+    document.getElementById("skipBtn").style.display      = "none";
     hideVotePanel();
-
-    // Afficher le message de passage en mode spectateur
     displaySpectatorMessage();
 }

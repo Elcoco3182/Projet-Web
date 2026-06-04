@@ -62,8 +62,8 @@ export function draw(getCurrentDayTime) {
     ctx.restore();
     drawBorder(renderOffsetX, renderOffsetY);
 
-    // Le masque nuit ne s'applique pas aux spectateurs (ils voient tout)
-    if (!state.isSpectator && (state.isNight || state.isMidnight || state.isDawn)) {
+    // Le masque nuit ne s'applique pas aux spectateurs ni aux admins
+    if (!state.isSpectator && !state.isAdmin && (state.isNight || state.isMidnight || state.isDawn)) {
         applyNightMask(screenX, screenY, 150 * state.cameraZoom);
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -117,18 +117,33 @@ function drawJoueurImage(x, y, player) {
         localSy = dirMap[player.d] ?? 0;
     }
 
-    // ── Fantôme (joueur mort) ──────────────────────────────────────────────────
-    // Un fantôme est visible uniquement par lui-même et par les autres fantômes.
-    // Les joueurs vivants ne voient pas les fantômes.
-    if (player.dead) {
-        // Si le spectateur local est vivant, on ne dessine pas les fantômes
-        if (!state.isSpectator) return;
+    // ── Admin ──────────────────────────────────────────────────────────────────
+    // Un admin n'est visible que par lui-même et les autres admins/spectateurs.
+    if (player.isAdmin) {
+        // Seuls les spectateurs (dont les autres admins) voient les admins
+        if (!state.isSpectator && !state.isAdmin) return;
 
         ctx.save();
-        ctx.globalAlpha = 0.55; // semi-transparent pour rappeler l'effet fantôme
+        ctx.globalAlpha = 0.75;
+        const adminImg = images["admin"] || images["innocent"];
+        ctx.drawImage(adminImg, localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
+        ctx.globalAlpha = 1;
+        ctx.font = "bold 11px Arial";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffcc00";
+        ctx.fillText(`👑 ${player.username ?? "?"}`, x, y + 42);
+        ctx.restore();
+        return;
+    }
+
+    // ── Fantôme (joueur mort) ──────────────────────────────────────────────────
+    if (player.dead) {
+        if (!state.isSpectator && !state.isAdmin) return;
+
+        ctx.save();
+        ctx.globalAlpha = 0.55;
         const fantomeImg = images["fantome"] || images["innocent"];
         ctx.drawImage(fantomeImg, localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
-        // Nom en gris pour les fantômes
         ctx.globalAlpha = 0.8;
         ctx.font = "12px Arial";
         ctx.textAlign = "center";
@@ -146,7 +161,6 @@ function drawJoueurImage(x, y, player) {
     }
 
     if (state.isMidnight || state.isDawn) {
-        // Minuit et aube : on voit les vrais rôles
         switch (player.type) {
             case "assassin":
                 ctx.drawImage(images["assassin"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
@@ -157,8 +171,7 @@ function drawJoueurImage(x, y, player) {
             case "parfumeuse":
                 if (state.isDawn) {
                     ctx.drawImage(images["parfumeuse"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
-                }
-                else {
+                } else {
                     ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
                 }
                 break;
@@ -166,10 +179,8 @@ function drawJoueurImage(x, y, player) {
                 ctx.drawImage(images["innocent"],    localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
         }
     } else if (state.isNight) {
-        // Nuit : tout le monde apparaît comme un innocent, pas de nom
         ctx.drawImage(images["innocent"], localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
     } else {
-        // Jour : avatar choisi, rôle caché, nom affiché
         const avatarKey = player.avatar || "innocent";
         const img = images[avatarKey] || images["innocent"];
         ctx.drawImage(img, localSx, localSy, 64, 64, x - 32, y - 32, 64, 64);
@@ -181,8 +192,8 @@ function drawJoueurImage(x, y, player) {
         ctx.fillText(player.username ?? "?", x + 1, y + 43);
     }
 
-    // Le spectateur voit aussi le vrai rôle de tous les joueurs vivants
-    if (state.isSpectator && !state.isMidnight && !state.isDawn && !state.isNight) {
+    // Les admins et spectateurs voient les vrais rôles
+    if ((state.isSpectator || state.isAdmin) && !state.isMidnight && !state.isDawn && !state.isNight) {
         ctx.font = "10px Arial";
         ctx.textAlign = "center";
         ctx.fillStyle = "rgba(255,100,100,0.9)";
@@ -218,8 +229,7 @@ function drawBorder(renderOffsetX, renderOffsetY) {
 
 function applyNightMask(px, py, radius) {
     let rad = radius;
-    // Rayon étendu uniquement pendant minuit et l'aube
-    if (state.localJoueur.type === "assassin"   && (state.isMidnight || state.isDawn)) rad *= 1.7;
+    if (state.localJoueur.type === "assassin"    && (state.isMidnight || state.isDawn)) rad *= 1.7;
     if (state.localJoueur.type === "petitefille" && (state.isMidnight || state.isDawn)) rad *= 2.5;
 
     ctxNight.save();
