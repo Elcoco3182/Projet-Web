@@ -551,7 +551,7 @@ export function showAdminPanel() {
     adminPanelEl = document.createElement("div");
     adminPanelEl.id = "adminPanel";
     adminPanelEl.style.cssText = [
-        "position:fixed;right:12px;top:50%;transform:translateY(-50%);",
+        "position:fixed;left:12px;top:50%;transform:translateY(-50%);",
         "width:175px;background:rgba(255,255,255,0.95);",
         "border:1px solid rgba(0,0,0,0.15);border-radius:10px;",
         "padding:10px 8px;display:flex;flex-direction:column;gap:6px;",
@@ -651,8 +651,8 @@ export function updateAdminPanel(players) {
                 `background:${p.isAdmin ? "#fefce8" : "#f5f5f5"};`,
             ].join("");
 
-            el.innerHTML = `<span style="font-size:13px;">${statusIcon}</span><span style="font-size:12px;color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.username ?? "?"}</span>`;
-
+            el.innerHTML = `<span style="font-size:13px;pointer-events:none;">${statusIcon}</span><span style="font-size:12px;color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;">${p.username ?? "?"}</span>`;
+            
             // Un autre admin n'est pas sélectionnable
             if (!p.isAdmin) {
                 el.addEventListener("click", () => {

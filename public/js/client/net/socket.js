@@ -37,8 +37,6 @@ export function initSocketMessages(onOpen) {
         switch (data.type) {
             case "update":
                 state.setPlayers(data.players);
-                // Mettre à jour le panneau admin si ouvert
-                if (state.isAdmin) updateAdminPanel(data.players);
                 break;
             case "lobbyUpdate":
                 if (!state.isAdmin) {

@@ -11,7 +11,15 @@ document.getElementById("dayTime").style.visibility = "hidden";
 initCanvas();
 displayUsername();
 
-setInterval(tickAnimation, 500);
+//s'occupe du l'interval pour l'animation et pour ne pas refaire de setInterval il s'occupe aussi du pannel de l'admin
+setInterval(() => {
+    tickAnimation();
+    if (state.isAdmin) {
+        import("./ui/ui.js").then(({ updateAdminPanel }) => {
+            updateAdminPanel(state.players);
+        });
+    }
+}, 250);
 
 // ── Cycle jour/nuit (affichage) ───────────────────────────────────────────────
 
