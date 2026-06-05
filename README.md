@@ -12,16 +12,17 @@
 
 Un mélange du loups-garou de thiercelieux et Among Us sur le thème de Polytech.
 
-Vous êtes restés tard dans le bâtiment de Polytech. Mais maintenant, vous êtes bloqués à l'intérieur.\
+Vous êtes restés tard dans le bâtiment de Polytech. Mais maintenant, vous êtes
+bloqués à l'intérieur.\
 Êtes-vous de sûr de pouvoir faire confiance à vos camarades ?
-
 
 ## Accès
 
-Vous pouvez y jouer en vous connectant au réseau Polytech ou alors avec le VPN de Polytech. (Tant que la VM est actif)\
-Ensuite, connectez-vous alors à https://162.38.111.34:8080 (Il faut faire confiance).
-Si vous utilisez firefox, il faudra aussi faire confiance à https://162.38.111.34:3000.
-
+Vous pouvez y jouer en vous connectant au réseau Polytech ou alors avec le VPN
+de Polytech. (Tant que la VM est actif)\
+Ensuite, connectez-vous alors à https://162.38.111.34:8080 (Il faut faire
+confiance). Si vous utilisez firefox, il faudra aussi faire confiance à
+https://162.38.111.34:3000.
 
 ## Architecture et Sécurité
 
