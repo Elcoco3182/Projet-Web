@@ -50,14 +50,14 @@ export function getTokenFromCookie(ctx: Context): string | null {
 export function setRefreshTokenCookie(ctx: Context, token: string): void {
   ctx.response.headers.append(
     "Set-Cookie",
-    `refresh_token=${token}; HttpOnly; Secure; SameSite=None  ; Path=/; Max-Age=2592000`,
+    `refresh_token=${token}; HttpOnly; Secure; SameSite=None  ; Path=/refresh; Max-Age=2592000`,
   );
 }
 
 export function clearRefreshTokenCookie(ctx: Context): void {
   ctx.response.headers.append(
     "Set-Cookie",
-    `refresh_token=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0`,
+    `refresh_token=; HttpOnly; Secure; SameSite=None; Path=/refresh; Max-Age=0`,
   );
 }
 

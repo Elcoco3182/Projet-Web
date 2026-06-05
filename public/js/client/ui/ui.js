@@ -72,8 +72,20 @@ export function displayErrorMessage(message) {
 }
 
 export async function displayUsername() {
-    const res = await fetch(`https://${location.hostname}:3000/verify`, { credentials: "include" });
-    if (!res.ok) { window.location.href = "/login.html"; return; }
+    let res = await fetch(`https://${location.hostname}:3000/verify`, { credentials: "include" });
+    if (!res.ok) {
+        const refreshRes = await fetch(`https://${location.hostname}:3000/refresh`, {
+            method: "POST",
+            credentials: "include"
+        });
+        if (!refreshRes.ok) {
+            window.location.href = "/login.html";
+            return;
+        }
+        // Réessayer le verify avec le nouvel access token
+        res = await fetch(`https://${location.hostname}:3000/verify`, { credentials: "include" });
+        if (!res.ok) { window.location.href = "/login.html"; return; }
+    }
     const data = await res.json();
     state.setPendingUsername(data.username);
     if (state.localJoueur) state.localJoueur.username = data.username;
