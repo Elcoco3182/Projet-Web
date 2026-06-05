@@ -11,11 +11,11 @@ variables:
   DENO_VERSION: "2.5.0"
   IMAGE_BASE: ${CI_REGISTRY_IMAGE}
 
-# ── Image Deno réutilisée par lint et test ─────────────────────────────────
+#  Image Deno réutilisée par lint et test
 .deno:
   image: denoland/deno:alpine-$DENO_VERSION
 
-# ── Stage 1 : Lint ─────────────────────────────────────────────────────────
+#  Stage 1 : Lint
 lint:
   extends: .deno
   stage: lint
@@ -23,14 +23,14 @@ lint:
     - deno fmt --check
     - deno lint
 
-# ── Stage 2 : Tests ────────────────────────────────────────────────────────
+#  Stage 2 : Tests
 test:
   extends: .deno
   stage: test
   script:
     - deno test --allow-env tests/
 
-# ── Stage 3 : Build & push images ─────────────────────────────────────────
+#  Stage 3 : Build & push images
 # Seulement sur main, après lint + test.
 .build-image:
   stage: build
@@ -70,7 +70,7 @@ build-db:
     - docker push $IMAGE_BASE/db:$CI_COMMIT_SHORT_SHA
     - docker push $IMAGE_BASE/db:latest
 
-# ── Stage 4 : Deploy sur la vm de corentin (moi) ()─────────────────────────────────────────
+#  Stage 4 : Deploy sur la vm de corentin (moi)
 
 deploy:
   stage: deploy
