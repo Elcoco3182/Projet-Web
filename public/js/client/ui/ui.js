@@ -187,6 +187,14 @@ export function displayKilledByVoteMessage(playerId) {
 }
 
 export function displayAubeToMatin() {
+    // Les navigateurs suspendent requestAnimationFrame dans un onglet en
+    // arrière-plan : plutôt que de rester figé jusqu'à ce que l'onglet
+    // redevienne actif, on saute directement à l'état final.
+    if (document.hidden) {
+        canvas.style.visibility = "visible";
+        return;
+    }
+
     canvas.style.visibility = "hidden";
     const overlay = document.createElement("div");
     overlay.style.cssText = "position:fixed;inset:0;z-index:200;background:#000;overflow:hidden;";
@@ -283,12 +291,33 @@ export function displayAubeToMatin() {
         const progress = Math.min((ts - startTime) / DURATION, 1);
         drawFrame(progress);
         if (progress < 1) requestAnimationFrame(animate);
-        else setTimeout(() => { overlay.remove(); canvas.style.visibility = "visible"; }, 600);
+        else finish();
     }
+
+    function finish() {
+        document.removeEventListener("visibilitychange", onHiddenSkip);
+        overlay.remove();
+        canvas.style.visibility = "visible";
+    }
+
+    // Si l'onglet passe en arrière-plan en plein milieu de l'animation
+    // (requestAnimationFrame va alors être suspendu par le navigateur),
+    // on saute directement à l'état final plutôt que de rester figé.
+    function onHiddenSkip() {
+        if (document.hidden) finish();
+    }
+    document.addEventListener("visibilitychange", onHiddenSkip);
+
     requestAnimationFrame(animate);
 }
 
 export function displayAfternoonToNight() {
+    // Idem displayAubeToMatin : ne pas rester figé si l'onglet est en fond.
+    if (document.hidden) {
+        canvas.style.visibility = "visible";
+        return;
+    }
+
     canvas.style.visibility = "hidden";
     const overlay = document.createElement("div");
     overlay.style.cssText = "position:fixed;inset:0;z-index:200;background:#000;overflow:hidden;";
@@ -391,8 +420,19 @@ export function displayAfternoonToNight() {
         const progress = Math.min((ts - startTime) / DURATION, 1);
         drawFrame(progress);
         if (progress < 1) requestAnimationFrame(animate);
-        else setTimeout(() => { overlay.remove(); canvas.style.visibility = "visible"; }, 600);
+        else finish();
     }
+
+    function finish() {
+        document.removeEventListener("visibilitychange", onHiddenSkip);
+        overlay.remove();
+        canvas.style.visibility = "visible";
+    }
+
+    function onHiddenSkip() {
+        if (document.hidden) finish();
+    }
+    document.addEventListener("visibilitychange", onHiddenSkip);
     requestAnimationFrame(animate);
 }
 
