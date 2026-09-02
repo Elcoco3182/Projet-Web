@@ -8,6 +8,11 @@
 ![HTML5](https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white)
 ![CSS](https://img.shields.io/badge/css-%23663399.svg?style=for-the-badge&logo=css&logoColor=white)
 
+## Contribution
+
+Reprise du projet web fait en cours, de base hébergé sur gitlab, pour l'améliorer afin de pouvoir l'inclure dans un portfolio en temps que démo jouable.
+Contributeurs : Cuenca Corentin, Ferracuti Filippo, Souchil Dhruvi
+
 ## Présentation
 
 Un mélange du loups-garou de thiercelieux et Among Us sur le thème de Polytech.
