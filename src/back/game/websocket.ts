@@ -1,4 +1,3 @@
-//src/back/game/websocket.ts
 import { Router } from "@oak/oak";
 import { verify } from "@zaubrik/djwt";
 import bcrypt from "@bcryptjs";
@@ -258,6 +257,7 @@ wsRouter.get("/ws", async (ctx) => {
             if (lobby.votes.length === aliveCount + 1) {
               checkVotesComplet(lobby);
               lobby.votes = [""];
+              lobby.votesResolved = true;
               forceSwitchDayTime(lobby);
             }
           }
@@ -272,7 +272,7 @@ wsRouter.get("/ws", async (ctx) => {
           removeParfume(lobby);
           break;
 
-        // ── Commandes admin ────────────────────────────────────────────
+          // ── Commandes admin ────────────────────────────────────────────
         case "adminKill":
           if (!player?.isAdmin) break;
           await adminKill(lobby, data.targetId);

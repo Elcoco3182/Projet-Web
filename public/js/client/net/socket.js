@@ -136,6 +136,7 @@ export function initSocketMessages(onReady, onJoinFailed) {
                     document.getElementById("skipBtn").style.display = "block";
                     showVotePanel(state.players.filter(p => !p.dead && !p.isAdmin));
                 }
+                startVoteTimer(data.duration);
                 break;
             case "noonSpawn":
                 if (!state.isSpectator && !state.isAdmin) {
@@ -147,6 +148,7 @@ export function initSocketMessages(onReady, onJoinFailed) {
                 state.setDayTime("isAfternoon");
                 document.getElementById("skipBtn").style.display = "none";
                 hideVotePanel();
+                stopVoteTimer();
                 break;
             case "isNight":
                 displayAfternoonToNight();
@@ -247,6 +249,65 @@ export function initSocketMessages(onReady, onJoinFailed) {
     };
 }
 
+// ── Compte à rebours de la phase de vote ──────────────────────────────────────
+
+let voteTimerInterval = null;
+
+function positionVoteTimerUnderDayTime(el) {
+    const dayTimeEl = document.getElementById("dayTime");
+    const rect = dayTimeEl.getBoundingClientRect();
+    el.style.position = "fixed";
+    el.style.top    = `${rect.bottom + 6}px`;
+    el.style.left   = `${rect.left}px`;
+    el.style.zIndex = "999";
+}
+
+function startVoteTimer(durationMs) {
+    stopVoteTimer();
+    if (!durationMs) return;
+
+    const el = document.getElementById("voteTimer");
+    let remaining = Math.ceil(durationMs / 1000);
+
+    // Style autonome, volontairement indépendant de la classe .stats-bar :
+    // si celle-ci positionne dayTime/lobbyCount à un endroit fixe partagé,
+    // réutiliser la même classe superposerait ce timer exactement dessus
+    // (invisible, caché derrière/sous un autre élément au même endroit).
+    el.style.cssText = [
+        "background:rgba(0,0,0,0.65)", "color:#fff",
+        "font-family:Arial,sans-serif", "font-size:14px", "font-weight:bold",
+        "padding:4px 12px", "border-radius:6px",
+    ].join(";");
+    positionVoteTimerUnderDayTime(el);
+
+    const render = () => {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        el.innerText = `⏱ ${m}:${s.toString().padStart(2, "0")}`;
+    };
+
+    el.style.display = "block";
+    render();
+
+    voteTimerInterval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+            stopVoteTimer();
+            return;
+        }
+        render();
+    }, 1000);
+}
+
+function stopVoteTimer() {
+    if (voteTimerInterval) {
+        clearInterval(voteTimerInterval);
+        voteTimerInterval = null;
+    }
+    const el = document.getElementById("voteTimer");
+    if (el) el.style.display = "none";
+}
+
 // ── Retour à l'écran d'attente (même lobby, sans reconnexion) ────────────────
 
 function handleReturnToLobby() {
@@ -258,6 +319,7 @@ function handleReturnToLobby() {
     }
 
     hideVotePanel();
+    stopVoteTimer();
     document.getElementById("dayTime").style.visibility = "hidden";
 
     if (!state.isAdmin) {

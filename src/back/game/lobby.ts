@@ -20,6 +20,10 @@ export interface Lobby {
   nbSkip: number;
   currentPartyId: number | null;
   votes: string[];
+  /** false pendant qu'une phase de vote (isNoon) est en cours et pas encore
+   * résolue — évite de compter les votes deux fois (une fois si tout le
+   * monde a voté avant le chrono, une fois si le chrono arrive à zéro). */
+  votesResolved: boolean;
 
   isMorning: boolean;
   isNoon: boolean;
@@ -73,6 +77,7 @@ class LobbyManager {
       nbSkip: 0,
       currentPartyId: null,
       votes: [""],
+      votesResolved: true,
       isMorning: false,
       isNoon: false,
       isAfternoon: true,
