@@ -3,6 +3,7 @@ import { oakCors } from "@deno.land/x/cors";
 import { PORT } from "./config.ts";
 import { authRouter } from "./auth/routes.ts";
 import { wsRouter } from "./game/websocket.ts";
+import { lobbyRouter } from "./game/lobbyRoutes.ts";
 
 const app = new Application();
 
@@ -47,6 +48,8 @@ app.use(healthRouter.routes());
 app.use(healthRouter.allowedMethods());
 app.use(wsRouter.routes());
 app.use(wsRouter.allowedMethods());
+app.use(lobbyRouter.routes());
+app.use(lobbyRouter.allowedMethods());
 app.use(authRouter.routes());
 app.use(authRouter.allowedMethods());
 

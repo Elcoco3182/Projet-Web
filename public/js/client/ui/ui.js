@@ -58,7 +58,16 @@ export function displayGameEndMessage(result) {
     countdown.textContent = `Retour au lobby dans ${secondes}s…`;
     const timer = setInterval(() => {
         secondes--;
-        if (secondes <= 0) { clearInterval(timer); window.location.reload(); }
+        if (secondes <= 0) {
+            clearInterval(timer);
+            overlay.remove();
+            canvas.style.display    = "block";
+            canvas.style.visibility = "visible";
+            // La réinitialisation effective des contrôles (readyBtn, etc.)
+            // est déclenchée par le message "returnToLobby" envoyé par le
+            // serveur au même moment (voir socket.js) — pas de reload ici,
+            // on reste connecté au même lobby.
+        }
         else countdown.textContent = `Retour au lobby dans ${secondes}s…`;
     }, 1000);
 }
@@ -638,8 +647,7 @@ export function updateAdminPanel(players) {
     players
         .filter((p) => {
             // Ne pas lister l'admin lui-même
-            if (state.localJoueur && p.id === state.localJoueur.id) return false;
-            return true;
+            return !(state.localJoueur && p.id === state.localJoueur.id);
         })
         .sort((a, b) => {
             // Vivants d'abord, morts ensuite, admins à la fin
@@ -664,7 +672,7 @@ export function updateAdminPanel(players) {
             ].join("");
 
             el.innerHTML = `<span style="font-size:13px;pointer-events:none;">${statusIcon}</span><span style="font-size:12px;color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;">${p.username ?? "?"}</span>`;
-            
+
             // Un autre admin n'est pas sélectionnable
             if (!p.isAdmin) {
                 el.addEventListener("click", () => {

@@ -23,12 +23,16 @@ export let isSpectator = false;
 /** true si le compte connecté est admin */
 export let isAdmin = false;
 
+/** id du lobby actuellement rejoint (null tant qu'aucun lobby n'est choisi) */
+export let currentLobbyId = null;
+
 export function setLocalJoueur(j)     { localJoueur    = j; }
 export function setPendingUsername(u) { pendingUsername = u; }
 export function setRejected(v)        { rejected        = v; }
 export function setLocalAvatar(a)     { localAvatar     = a; }
 export function setIsSpectator(v)     { isSpectator     = v; }
 export function setIsAdmin(v)         { isAdmin         = v; }
+export function setCurrentLobbyId(id) { currentLobbyId  = id; }
 
 // Cycle jour/nuit
 export let isMorning   = false;

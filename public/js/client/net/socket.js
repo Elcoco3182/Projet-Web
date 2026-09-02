@@ -1,16 +1,36 @@
 import * as state from "../core/state.js";
 import { Joueur } from "../core/player.js";
 import {
-    displayKilledMessage, displayGameEndMessage, displayErrorMessage,
+    displayGameEndMessage, displayErrorMessage,
     setJoueurAttributes, showVotePanel, hideVotePanel,
     displayExeco, displayKilledByVoteMessage, displayAubeToMatin,
     displayAfternoonToNight, displaySpectatorMessage,
     showAdminPanel, updateAdminPanel,
 } from "../ui/ui.js";
 import { setLocalAvatar, setIsSpectator, setIsAdmin } from "../core/state.js";
-import { updateZoom } from "../render/renderer.js";
 
-export const socket = new WebSocket(`wss://${location.hostname}:3000/ws`);
+// La socket n'est plus créée au chargement du module : on ne se connecte
+// qu'une fois qu'un lobby a été choisi (voir connectToLobby ci-dessous).
+export let socket = null;
+
+/** true une fois que le serveur a confirmé le join (message "playerId" reçu).
+ *  Tant que c'est false, un close/error de la socket = échec de connexion
+ *  (mauvais mdp, lobby plein, etc.), pas une déconnexion en cours de partie. */
+let joinConfirmed = false;
+
+/**
+ * Ouvre la connexion websocket vers un lobby précis.
+ * @param {string} lobbyId
+ * @param {string} [password] mot de passe du lobby s'il est privé
+ * @returns {WebSocket}
+ */
+export function connectToLobby(lobbyId, password) {
+    joinConfirmed = false;
+    const params = new URLSearchParams({ lobbyId });
+    if (password) params.set("password", password);
+    socket = new WebSocket(`wss://${location.hostname}:3000/ws?${params.toString()}`);
+    return socket;
+}
 
 export function sendUpdate(localJoueur, keys, joystickInput) {
     let direction;
@@ -31,7 +51,20 @@ export function sendSkip() {
     socket.send(JSON.stringify({ type: "skip" }));
 }
 
-export function initSocketMessages(onOpen) {
+/** Ferme proprement la connexion courante (bouton "Quitter le lobby"). */
+export function leaveLobby() {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close(1000, "Le joueur a quitté le lobby");
+    }
+    socket = null;
+}
+
+/**
+ * @param {() => void} onReady appelé une fois le join confirmé (message "playerId" reçu)
+ * @param {(reason: string) => void} [onJoinFailed] appelé si la connexion échoue
+ *        AVANT confirmation du join (mauvais mdp, lobby plein/en cours...)
+ */
+export function initSocketMessages(onReady, onJoinFailed) {
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         switch (data.type) {
@@ -76,6 +109,11 @@ export function initSocketMessages(onOpen) {
                     document.getElementById("lobbyCount").style.display = "none";
                     showAdminPanel();
                 }
+
+                // Le join est officiellement confirmé par le serveur : on peut
+                // révéler l'interface de jeu (voir onReady dans client.js).
+                joinConfirmed = true;
+                if (onReady) onReady();
                 break;
             }
             case "mapSize":
@@ -155,6 +193,9 @@ export function initSocketMessages(onOpen) {
             case "gameEnd":
                 displayGameEndMessage(data.result);
                 break;
+            case "returnToLobby":
+                handleReturnToLobby();
+                break;
             case "vote":
                 if (data.draw) displayExeco(data.tabExeco);
                 else           displayKilledByVoteMessage(data.player);
@@ -173,9 +214,27 @@ export function initSocketMessages(onOpen) {
         }
     };
 
-    socket.onerror  = (error) => displayErrorMessage("WebSocket error: " + error.message);
+    socket.onerror = () => {
+        // Une erreur avant confirmation du join est traitée dans onclose
+        // (qui suit toujours onerror), pas ici, pour éviter un double traitement.
+        if (joinConfirmed) displayErrorMessage("Erreur de connexion au serveur.");
+    };
 
-    socket.onclose  = (event) => {
+    socket.onclose = (event) => {
+        if (!joinConfirmed) {
+            // Échec de connexion avant même d'avoir rejoint la partie :
+            // mauvais mot de passe, lobby plein/en cours, lobby supprimé entre-temps...
+            // On ne montre jamais l'écran de jeu dans ce cas — on prévient l'appelant
+            // pour qu'il puisse renvoyer le joueur vers l'écran de sélection.
+            if (onJoinFailed) {
+                const reason = event.code === 1006
+                    ? "Connexion refusée : mot de passe incorrect, lobby plein, en cours de partie ou introuvable."
+                    : "Impossible de rejoindre ce lobby.";
+                onJoinFailed(reason);
+            }
+            return;
+        }
+
         if (event.code === 1006) {
             displayErrorMessage("Partie pleine ou déjà en cours.");
             return;
@@ -186,8 +245,30 @@ export function initSocketMessages(onOpen) {
             else                     displayErrorMessage("WebSocket connection closed unexpectedly");
         });
     };
+}
 
-    socket.onopen = onOpen;
+// ── Retour à l'écran d'attente (même lobby, sans reconnexion) ────────────────
+
+function handleReturnToLobby() {
+    // Réinitialiser les indicateurs locaux du round précédent.
+    // Un admin reste spectateur en permanence (dead=true) d'un round à l'autre.
+    if (state.localJoueur) {
+        state.localJoueur.dead = state.isAdmin;
+        state.localJoueur.type = undefined;
+    }
+
+    hideVotePanel();
+    document.getElementById("dayTime").style.visibility = "hidden";
+
+    if (!state.isAdmin) {
+        setIsSpectator(false);
+        document.getElementById("killButton").style.display   = "none";
+        document.getElementById("parfumButton").style.display = "none";
+        document.getElementById("skipBtn").style.display      = "none";
+        document.getElementById("readyBtn").style.display     = "block";
+        document.getElementById("avatarBtn").style.display    = "block";
+        document.getElementById("lobbyCount").style.display   = "block";
+    }
 }
 
 // ── Passage en mode spectateur ────────────────────────────────────────────────

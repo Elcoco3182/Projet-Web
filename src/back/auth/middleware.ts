@@ -69,7 +69,7 @@ export function getRefreshTokenFromCookie(ctx: Context): string | null {
   return match ? match.split("=")[1] : null;
 }
 
-// ==================== MIDDLEWARE D'AUTHENTIFICATION ==========================
+// ==================== MIDDLEWARE D'AUTHENTIFICATION (pages HTML) =============
 // Vérifie l'access token sur les routes protégées.
 // Si expiré → redirige vers /login.html (le navigateur tentera un /refresh avant).
 
@@ -85,6 +85,31 @@ export async function requireAuth(ctx: Context, next: () => Promise<unknown>) {
   } catch {
     clearAuthCookie(ctx);
     ctx.response.redirect("/login.html");
+  }
+}
+
+// ==================== MIDDLEWARE D'AUTHENTIFICATION (routes API JSON) ========
+// Même vérification que requireAuth, mais renvoie un 401 JSON au lieu d'une
+// redirection HTML — indispensable pour les endpoints appelés via fetch()
+// (ex : /lobbies), où une redirection casserait le parsing JSON côté client.
+
+export async function requireAuthJson(
+  ctx: Context,
+  next: () => Promise<unknown>,
+) {
+  const token = getTokenFromCookie(ctx);
+  if (!token) {
+    ctx.response.status = 401;
+    ctx.response.body = { error: "Non authentifié." };
+    return;
+  }
+  try {
+    await verify(token, secretKey);
+    await next();
+  } catch {
+    clearAuthCookie(ctx);
+    ctx.response.status = 401;
+    ctx.response.body = { error: "Token invalide ou expiré." };
   }
 }
 

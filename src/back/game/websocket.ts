@@ -1,17 +1,11 @@
+//src/back/game/websocket.ts
 import { Router } from "@oak/oak";
 import { verify } from "@zaubrik/djwt";
+import bcrypt from "@bcryptjs";
 import { secretKey } from "../config.ts";
-import {
-  AVATARS,
-  MAP_HEIGHT,
-  MAP_WIDTH,
-  players,
-  pushVote,
-  resetVotes,
-  sockets,
-  state,
-  votes,
-} from "./state.ts";
+import { AVATARS } from "./state.ts";
+import { lobbyManager } from "./lobby.ts";
+import type { Lobby } from "./lobby.ts";
 import { getRandomSpawnPoint, obstacles } from "../utils/map.ts";
 import {
   adminKick,
@@ -32,16 +26,17 @@ import {
 } from "./logic.ts";
 import { getTokenFromCookie } from "../auth/middleware.ts";
 import { API_URL, fetchWithRetry } from "../utils/fetch.ts";
+import { MAP_HEIGHT, MAP_WIDTH } from "./state.ts";
 
 export const wsRouter = new Router();
 
-export function getCurrentDayTime(): string {
-  if (state.isMorning) return "isMorning";
-  if (state.isNoon) return "isNoon";
-  if (state.isAfternoon) return "isAfternoon";
-  if (state.isNight) return "isNight";
-  if (state.isMidnight) return "isMidnight";
-  if (state.isDawn) return "isDawn";
+export function getCurrentDayTime(lobby: Lobby): string {
+  if (lobby.isMorning) return "isMorning";
+  if (lobby.isNoon) return "isNoon";
+  if (lobby.isAfternoon) return "isAfternoon";
+  if (lobby.isNight) return "isNight";
+  if (lobby.isMidnight) return "isMidnight";
+  if (lobby.isDawn) return "isDawn";
   return "Inconnu";
 }
 
@@ -85,14 +80,40 @@ wsRouter.get("/ws", async (ctx) => {
     return;
   }
 
+  // ── Résolution du lobby ciblé ────────────────────────────────────────────
+  const lobbyId = ctx.request.url.searchParams.get("lobbyId");
+  const password = ctx.request.url.searchParams.get("password") ?? "";
+
+  if (!lobbyId) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Paramètre lobbyId manquant." };
+    return;
+  }
+
+  const lobby = lobbyManager.getLobby(lobbyId);
+  if (!lobby) {
+    ctx.response.status = 404;
+    ctx.response.body = { error: "Lobby introuvable." };
+    return;
+  }
+
+  if (lobby.passwordHash) {
+    const valid = await bcrypt.compare(password, lobby.passwordHash);
+    if (!valid) {
+      ctx.response.status = 401;
+      ctx.response.body = { error: "Mot de passe du lobby incorrect." };
+      return;
+    }
+  }
+
   // Récupérer le statut admin AVANT l'upgrade
   const isAdmin = await fetchIsAdmin(username);
 
   // Les admins ne comptent pas dans la limite des 20 joueurs
-  const nonAdminCount = Array.from(players.values()).filter((p) =>
+  const nonAdminCount = Array.from(lobby.players.values()).filter((p) =>
     !p.isAdmin
   ).length;
-  if (!isAdmin && (state.gameState === "playing" || nonAdminCount >= 20)) {
+  if (!isAdmin && (lobby.gameState === "playing" || nonAdminCount >= 20)) {
     ctx.response.status = 403;
     ctx.response.body = { error: "Partie pleine ou en cours." };
     return;
@@ -104,18 +125,19 @@ wsRouter.get("/ws", async (ctx) => {
 
   ws.onclose = () => {
     if (rejected) return;
-    players.delete(playerId);
-    sockets.delete(playerId);
-    sendUpdatelobby();
-    closeGame();
+    lobby.players.delete(playerId);
+    lobby.sockets.delete(playerId);
+    sendUpdatelobby(lobby);
+    closeGame(lobby).then(() => {
+      // Suppression automatique du lobby s'il n'a plus aucun joueur
+      lobbyManager.deleteLobbyIfEmpty(lobby.id);
+    });
   };
-
-  if (state.gameState === "noConnected") state.gameState = "lobby";
 
   const spawnPoint = getRandomSpawnPoint(2600, 2000, 750, 600);
 
-  sockets.set(playerId, ws);
-  players.set(playerId, {
+  lobby.sockets.set(playerId, ws);
+  lobby.players.set(playerId, {
     id: playerId,
     x: spawnPoint.x,
     y: spawnPoint.y,
@@ -131,15 +153,15 @@ wsRouter.get("/ws", async (ctx) => {
     isAdmin,
   });
 
-  if (!isAdmin) sendUpdatelobby();
+  if (!isAdmin) sendUpdatelobby(lobby);
 
   ws.onopen = () => {
     try {
       // Un non-admin ne peut pas rejoindre si partie en cours
-      if (!isAdmin && (state.gameState === "playing" || nonAdminCount > 20)) {
+      if (!isAdmin && (lobby.gameState === "playing" || nonAdminCount > 20)) {
         rejected = true;
         ws.send(JSON.stringify({ type: "rejected" }));
-        players.delete(playerId);
+        lobby.players.delete(playerId);
         ws.close(1008, "Partie en cours");
         return;
       }
@@ -160,13 +182,13 @@ wsRouter.get("/ws", async (ctx) => {
           width: MAP_WIDTH,
         }),
       );
-      ws.send(JSON.stringify({ type: getCurrentDayTime() }));
+      ws.send(JSON.stringify({ type: getCurrentDayTime(lobby) }));
 
       // Si admin, on lui envoie immédiatement l'état courant de la liste joueurs
       if (isAdmin) {
         ws.send(JSON.stringify({
           type: "adminInit",
-          players: Array.from(players.values()),
+          players: Array.from(lobby.players.values()),
         }));
       }
     } catch (err) {
@@ -177,86 +199,87 @@ wsRouter.get("/ws", async (ctx) => {
   ws.onmessage = async (event) => {
     try {
       const data = JSON.parse(event.data);
-      const player = players.get(playerId);
+      const player = lobby.players.get(playerId);
 
       switch (data.type) {
         case "update":
-          updatePlayer(playerId, data);
+          updatePlayer(lobby, playerId, data);
           break;
         case "disconnect":
-          players.delete(playerId);
-          if (state.gameState === "lobby") sendUpdatelobby();
+          lobby.players.delete(playerId);
+          if (lobby.gameState === "lobby") sendUpdatelobby(lobby);
           break;
         case "killFromAssassin":
           if (player?.dead || player?.isAdmin) break;
-          await tryKill(playerId, data.targetId);
+          await tryKill(lobby, playerId, data.targetId);
           break;
         case "setReady":
           if (player?.dead || player?.isAdmin) break;
-          setReadyPlayer(playerId);
-          sendUpdatelobby();
-          if (checkAllReady()) {
-            state.gameState = "playing";
-            startGame();
+          setReadyPlayer(lobby, playerId);
+          sendUpdatelobby(lobby);
+          if (checkAllReady(lobby)) {
+            lobby.gameState = "playing";
+            startGame(lobby);
           }
           break;
         case "skip":
           if (player?.dead || player?.isAdmin) break;
-          wantSkipPlayer(playerId);
-          if (checkAllWantSkip()) {
-            forceSwitchDayTime();
-            state.nbSkip = 0;
+          wantSkipPlayer(lobby, playerId);
+          if (checkAllWantSkip(lobby)) {
+            forceSwitchDayTime(lobby);
+            lobby.nbSkip = 0;
           }
           break;
         case "setAvatar": {
           // Admins ne peuvent pas changer d'avatar
-          if (state.gameState !== "lobby" || player?.isAdmin) break;
+          if (lobby.gameState !== "lobby" || player?.isAdmin) break;
           const avatar = data.avatar;
           if (!AVATARS.includes(avatar)) break;
-          const p = players.get(playerId);
+          const p = lobby.players.get(playerId);
           if (p) p.avatar = avatar;
           const avatarUpdate = JSON.stringify({
             type: "avatarUpdate",
             playerId,
             avatar,
           });
-          sockets.forEach((client) => {
+          lobby.sockets.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) client.send(avatarUpdate);
           });
           break;
         }
         case "vote":
           if (player?.dead || player?.isAdmin) break;
-          pushVote(data.vote);
+          lobby.votes.push(data.vote);
           {
             const aliveCount =
-              Array.from(players.values()).filter((p) => !p.dead && !p.isAdmin)
-                .length;
-            if (votes.length === aliveCount + 1) {
-              checkVotesComplet();
-              resetVotes();
-              forceSwitchDayTime();
+              Array.from(lobby.players.values()).filter((p) =>
+                !p.dead && !p.isAdmin
+              ).length;
+            if (lobby.votes.length === aliveCount + 1) {
+              checkVotesComplet(lobby);
+              lobby.votes = [""];
+              forceSwitchDayTime(lobby);
             }
           }
           break;
         case "parfume": {
           if (player?.dead || player?.isAdmin) break;
-          const p = players.get(data.targetId);
+          const p = lobby.players.get(data.targetId);
           if (p) p.isParfume = true;
           break;
         }
         case "unParfume":
-          removeParfume();
+          removeParfume(lobby);
           break;
 
         // ── Commandes admin ────────────────────────────────────────────
         case "adminKill":
           if (!player?.isAdmin) break;
-          await adminKill(data.targetId);
+          await adminKill(lobby, data.targetId);
           break;
         case "adminKick":
           if (!player?.isAdmin) break;
-          adminKick(data.targetId);
+          adminKick(lobby, data.targetId);
           break;
       }
     } catch (err) {
@@ -269,7 +292,7 @@ wsRouter.get("/ws", async (ctx) => {
       ws.send(
         JSON.stringify({
           type: "update",
-          players: Array.from(players.values()),
+          players: Array.from(lobby.players.values()),
         }),
       );
     } else {
