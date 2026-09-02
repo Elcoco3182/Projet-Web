@@ -225,10 +225,23 @@ export function switchDayTime(lobby: Lobby) {
   if (lobby.isMorning) {
     lobby.isMorning = false;
     lobby.isNoon = true;
-    broadcast(lobby, "isNoon", { players: Array.from(lobby.players.values()) });
+    lobby.votesResolved = false; // nouveau round de vote qui démarre
+    broadcast(lobby, "isNoon", {
+      players: Array.from(lobby.players.values()),
+      duration: phaseDurations.isNoon,
+    });
     duree = phaseDurations.isNoon;
     tpAllJoueurNoon(lobby);
   } else if (lobby.isNoon) {
+    if (!lobby.votesResolved) {
+      // Le chrono de vote (2 min) est arrivé à zéro sans que tout le monde
+      // ait voté : les joueurs n'ayant pas voté sont traités comme des
+      // abstentions (équivalent à un skip automatique), le vote est résolu
+      // avec les voix déjà exprimées.
+      checkVotesComplet(lobby);
+      lobby.votes = [""];
+      lobby.votesResolved = true;
+    }
     lobby.isNoon = false;
     lobby.isAfternoon = true;
     broadcast(lobby, "isAfternoon");
