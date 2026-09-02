@@ -2,24 +2,23 @@ import * as state from "./core/state.js";
 import { preloadImages } from "./render/assets.js";
 import { canvas, initCanvas, updateZoom, draw, tickAnimation } from "./render/renderer.js";
 import { keys, joystickInput } from "./ui/input.js";
-import { socket, sendUpdate, sendReady, sendSkip, initSocketMessages } from "./net/socket.js";
+import { connectToLobby, sendUpdate, sendReady, sendSkip, initSocketMessages, leaveLobby } from "./net/socket.js";
+import { socket } from "./net/socket.js";
 import { displayUsername, submitVote, showAvatarPanel } from "./ui/ui.js";
+import { showLobbyBrowser } from "./ui/lobby.js";
+import { showLobbyBadge } from "./ui/lobbyBadge.js";
 
-// ── Initialisation ────────────────────────────────────────────────────────────
-
+// ── État initial : le jeu reste caché tant qu'aucun lobby n'est rejoint ───────
 document.getElementById("dayTime").style.visibility = "hidden";
-initCanvas();
-displayUsername();
+canvas.style.display = "none";
+document.getElementById("popup").style.display = "none";
 
-//s'occupe du l'interval pour l'animation et pour ne pas refaire de setInterval il s'occupe aussi du pannel de l'admin
-setInterval(() => {
-    tickAnimation();
-    if (state.isAdmin) {
-        import("./ui/ui.js").then(({ updateAdminPanel }) => {
-            updateAdminPanel(state.players);
-        });
-    }
-}, 250);
+// ── Boutons globaux (appelés depuis le HTML) ──────────────────────────────────
+window.sendReady  = sendReady;
+window.sendSkip   = sendSkip;
+window.clientSubmitVote = submitVote;
+window.openAvatarPanel  = showAvatarPanel;
+window.leaveLobby       = leaveLobby;
 
 // ── Cycle jour/nuit (affichage) ───────────────────────────────────────────────
 
@@ -33,12 +32,6 @@ function getCurrentDayTime() {
     return "Inconnu";
 }
 
-// ── Boutons globaux (appelés depuis le HTML) ──────────────────────────────────
-window.sendReady  = sendReady;
-window.sendSkip   = sendSkip;
-window.clientSubmitVote = submitVote;
-window.openAvatarPanel  = showAvatarPanel;
-
 // ── Boucle de jeu ─────────────────────────────────────────────────────────────
 
 let lastTime = 0;
@@ -50,7 +43,10 @@ function gameLoop(timestamp) {
     lastTime = timestamp;
 
     if (!state.localJoueur) return;
-    if (socket.readyState !== WebSocket.OPEN) return;
+
+    // `socket` est importé en liaison "live" ES module : cette lecture
+    // reflète toujours la socket courante, même réassignée par connectToLobby().
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
     // Un fantôme peut se déplacer librement (sans restriction de phase)
     // Un joueur vivant ne peut pas bouger à midi
@@ -80,13 +76,50 @@ function gameLoop(timestamp) {
     draw(getCurrentDayTime);
 }
 
-// ── Démarrage après connexion WebSocket ───────────────────────────────────────
+// ── Démarrage : auth puis choix du lobby puis jeu ─────────────────────────────
 
-initSocketMessages(() => {
-    preloadImages(() => {
-        requestAnimationFrame(gameLoop);
-    });
-});
+async function boot() {
+    // Vérifie l'authentification, redirige vers /login.html sinon,
+    // affiche le pseudo une fois confirmé.
+    await displayUsername();
+    showLobbyBrowser(onLobbyJoined);
+}
+
+let animationIntervalId = null;
+
+function onLobbyJoined(lobbyId, password) {
+    initCanvas(); // le canvas reste display:none tant que le join n'est pas confirmé
+
+    connectToLobby(lobbyId, password);
+
+    initSocketMessages(
+        // ── Succès : le serveur a confirmé le join (message "playerId") ──────
+        () => {
+            canvas.style.display = "block";
+            document.getElementById("popup").style.display = "block";
+            showLobbyBadge(lobbyId);
+
+            if (animationIntervalId) clearInterval(animationIntervalId);
+            animationIntervalId = setInterval(() => {
+                tickAnimation();
+                if (state.isAdmin) {
+                    import("./ui/ui.js").then(({ updateAdminPanel }) => {
+                        updateAdminPanel(state.players);
+                    });
+                }
+            }, 250);
+
+            preloadImages(() => {
+                requestAnimationFrame(gameLoop);
+            });
+        },
+        // ── Échec avant confirmation : mauvais mdp, lobby plein/supprimé... ──
+        (reason) => {
+            alert(reason);
+            showLobbyBrowser(onLobbyJoined);
+        },
+    );
+}
 
 // ── Resize ────────────────────────────────────────────────────────────────────
 
@@ -100,3 +133,5 @@ window.addEventListener("resize", () => {
     // Si spectateur, ne pas écraser le zoom étendu
     if (!state.isSpectator) updateZoom();
 });
+
+boot();

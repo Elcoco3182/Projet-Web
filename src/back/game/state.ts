@@ -1,7 +1,7 @@
-// ==================== ÉTAT GLOBAL DU JEU ====================
-
-export const sockets = new Map<string, WebSocket>();
-export const players = new Map<string, Player>();
+// ==================== CONSTANTES ET TYPES PARTAGÉS ====================
+// Depuis le passage multi-lobby, cet état n'est plus un singleton global :
+// chaque partie vit dans un objet Lobby (voir lobby.ts). Ce fichier ne
+// contient plus que ce qui est vraiment partagé entre tous les lobbies.
 
 export const AVATARS = [
   "innocent",
@@ -32,31 +32,6 @@ export type Player = {
   dead: boolean; // true = fantôme spectateur
   isAdmin: boolean; // true = compte admin, toujours hors jeu
 };
-
-export type GameState = "noConnected" | "lobby" | "playing";
-
-export const state = {
-  gameState: "noConnected" as GameState,
-  nbReady: 0,
-  nbSkip: 0,
-  currentPartyId: null as number | null,
-  isMorning: false,
-  isNoon: false,
-  isAfternoon: true,
-  isNight: false,
-  isMidnight: false,
-  isDawn: false,
-  dayTimeTimeoutId: 0 as number,
-  finDePartie: false,
-};
-
-export let votes: [string] = [""];
-export function resetVotes() {
-  votes = [""];
-}
-export function pushVote(v: string) {
-  votes.push(v);
-}
 
 // ==================== CONFIG RÔLES ====================
 

@@ -1,90 +1,84 @@
-import {
-  phaseDurations,
-  players,
-  roleSelonNbJoueur,
-  sockets,
-  state,
-  votes,
-} from "./state.ts";
+import { phaseDurations, roleSelonNbJoueur } from "./state.ts";
+import type { Player } from "./state.ts";
+import type { Lobby } from "./lobby.ts";
 import { API_URL, fetchWithRetry } from "../utils/fetch.ts";
 import { getRandomSpawnPoint } from "../utils/map.ts";
 
 // ==================== HELPERS ====================
 
-/** Joueurs vivants ET non-admin (participent au jeu). */
-function alivePlayers(): Player[] {
+/** Joueurs vivants ET non-admin (participent au jeu) d'un lobby donné. */
+function alivePlayers(lobby: Lobby): Player[] {
   const alive: Player[] = [];
-  players.forEach((p) => {
+  lobby.players.forEach((p) => {
     if (!p.dead && !p.isAdmin) alive.push(p);
   });
   return alive;
 }
 
-import type { Player } from "./state.ts";
+// ==================== LOBBY (salle d'attente) ====================
 
-// ==================== LOBBY ====================
-
-export function miseAjourReady() {
-  state.nbReady = 0;
-  // Seuls les joueurs vivants non-admin comptent pour le ready
-  players.forEach((player) => {
-    if (!player.dead && !player.isAdmin && player.ready) state.nbReady += 1;
+export function miseAjourReady(lobby: Lobby) {
+  lobby.nbReady = 0;
+  lobby.players.forEach((player) => {
+    if (!player.dead && !player.isAdmin && player.ready) lobby.nbReady += 1;
   });
 }
 
-export function miseAjourSkip() {
-  state.nbSkip = 0;
-  players.forEach((player) => {
-    if (!player.dead && !player.isAdmin && player.skip) state.nbSkip += 1;
+export function miseAjourSkip(lobby: Lobby) {
+  lobby.nbSkip = 0;
+  lobby.players.forEach((player) => {
+    if (!player.dead && !player.isAdmin && player.skip) lobby.nbSkip += 1;
   });
 }
 
-export function checkAllReady(): boolean {
-  miseAjourReady();
-  const aliveCount = alivePlayers().length;
-  return aliveCount >= 3 && state.nbReady === aliveCount;
+export function checkAllReady(lobby: Lobby): boolean {
+  miseAjourReady(lobby);
+  const aliveCount = alivePlayers(lobby).length;
+  return aliveCount >= 3 && lobby.nbReady === aliveCount;
 }
 
-export function checkAllWantSkip(): boolean {
-  miseAjourSkip();
-  const aliveCount = alivePlayers().length;
-  return aliveCount > 0 && state.nbSkip === aliveCount;
+export function checkAllWantSkip(lobby: Lobby): boolean {
+  miseAjourSkip(lobby);
+  const aliveCount = alivePlayers(lobby).length;
+  return aliveCount > 0 && lobby.nbSkip === aliveCount;
 }
 
-export function setReadyPlayer(playerId: string) {
-  const player = players.get(playerId);
+export function setReadyPlayer(lobby: Lobby, playerId: string) {
+  const player = lobby.players.get(playerId);
   if (player) player.ready = true;
 }
 
-export function wantSkipPlayer(playerId: string) {
-  const player = players.get(playerId);
+export function wantSkipPlayer(lobby: Lobby, playerId: string) {
+  const player = lobby.players.get(playerId);
   if (player && !player.dead && !player.isAdmin) player.skip = true;
 }
 
-export function sendUpdatelobby() {
-  miseAjourReady();
-  const aliveCount = alivePlayers().length;
+export function sendUpdatelobby(lobby: Lobby) {
+  miseAjourReady(lobby);
+  const aliveCount = alivePlayers(lobby).length;
   const data = JSON.stringify({
     type: "lobbyUpdate",
-    nbReady: state.nbReady,
+    nbReady: lobby.nbReady,
     total: aliveCount,
   });
-  sockets.forEach((client) => {
+  lobby.sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) client.send(data);
   });
 }
 
 // ==================== DÉMARRAGE ====================
 
+/** Identifiant unique de connexion, indépendant de l'id du lobby. */
 export function createPlayerId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
 export function updatePlayer(
+  lobby: Lobby,
   playerId: string,
   data: { x: number; y: number; d: string },
 ) {
-  const player = players.get(playerId);
+  const player = lobby.players.get(playerId);
   if (player) {
     player.x = data.x;
     player.y = data.y;
@@ -93,11 +87,12 @@ export function updatePlayer(
 }
 
 export function activatePlayer(
+  lobby: Lobby,
   playerId: string,
   role: string,
   spawn?: { x: number; y: number },
 ) {
-  const player = players.get(playerId);
+  const player = lobby.players.get(playerId);
   if (player) {
     player.active = true;
     player.type = role;
@@ -108,42 +103,44 @@ export function activatePlayer(
   }
 }
 
-async function fetchPartiApi() {
+async function fetchPartiApi(lobby: Lobby) {
   try {
     const partieRes = await fetchWithRetry(`${API_URL}/parties`, {
       method: "POST",
     });
     const partie = await partieRes.json();
-    state.currentPartyId = partie.id;
-    console.log(`Partie créée : id=${state.currentPartyId}`);
+    lobby.currentPartyId = partie.id;
+    console.log(
+      `[lobby ${lobby.id}] Partie créée : id=${lobby.currentPartyId}`,
+    );
   } catch (err) {
-    console.error("Impossible de créer la partie :", err);
+    console.error(`[lobby ${lobby.id}] Impossible de créer la partie :`, err);
   }
 }
 
-export async function startGame() {
-  state.finDePartie = false;
-  await fetchPartiApi();
-  await giveRoleAll();
-  switchDayTime();
+export async function startGame(lobby: Lobby) {
+  lobby.finDePartie = false;
+  await fetchPartiApi(lobby);
+  await giveRoleAll(lobby);
+  switchDayTime(lobby);
 }
 
-async function giveRoleAll() {
+async function giveRoleAll(lobby: Lobby) {
   const tabInt = Array.from({ length: 21 }, (_, i) => i);
   const tabPlayer: string[] = [];
   let i = 0;
 
   // N'attribuer des rôles qu'aux joueurs vivants non-admin
-  alivePlayers().forEach((player) => {
+  alivePlayers(lobby).forEach((player) => {
     tabPlayer[i] = player.id;
     i += 1;
-    const r1 = Math.floor(Math.random() * alivePlayers().length);
-    const r2 = Math.floor(Math.random() * alivePlayers().length);
+    const r1 = Math.floor(Math.random() * alivePlayers(lobby).length);
+    const r2 = Math.floor(Math.random() * alivePlayers(lobby).length);
     [tabInt[r1], tabInt[r2]] = [tabInt[r2], tabInt[r1]];
   });
 
   i = 0;
-  const rolePossible = roleSelonNbJoueur[alivePlayers().length];
+  const rolePossible = roleSelonNbJoueur[alivePlayers(lobby).length];
 
   for (const playerId of tabPlayer) {
     let role = rolePossible.charAt(tabInt[i]);
@@ -173,14 +170,14 @@ async function giveRoleAll() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         user_id: 1,
-        party_id: state.currentPartyId,
+        party_id: lobby.currentPartyId,
         role_id,
       }),
     });
 
     const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
-    activatePlayer(playerId, role, spawn);
-    const playerSocket = sockets.get(playerId);
+    activatePlayer(lobby, playerId, role, spawn);
+    const playerSocket = lobby.sockets.get(playerId);
     if (playerSocket?.readyState === WebSocket.OPEN) {
       playerSocket.send(
         JSON.stringify({
@@ -191,13 +188,15 @@ async function giveRoleAll() {
         }),
       );
     }
-    console.log(`Joueur ${playerId} enregistré avec le rôle ${role}`);
+    console.log(
+      `[lobby ${lobby.id}] Joueur ${playerId} enregistré avec le rôle ${role}`,
+    );
   }
 
   // Notifier les admins que la partie a commencé (sans rôle)
-  players.forEach((player, playerId) => {
+  lobby.players.forEach((player, playerId) => {
     if (!player.isAdmin) return;
-    const sock = sockets.get(playerId);
+    const sock = lobby.sockets.get(playerId);
     if (sock?.readyState === WebSocket.OPEN) {
       sock.send(JSON.stringify({ type: "adminGameStart" }));
     }
@@ -206,68 +205,85 @@ async function giveRoleAll() {
 
 // ==================== CYCLE JOUR/NUIT ====================
 
-function broadcast(type: string, extra?: Record<string, unknown>) {
+function broadcast(
+  lobby: Lobby,
+  type: string,
+  extra?: Record<string, unknown>,
+) {
   const data = JSON.stringify({ type, ...extra });
-  sockets.forEach((client) => {
-    if (client.readyState === 1) client.send(data);
+  lobby.sockets.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) client.send(data);
   });
 }
 
-export function switchDayTime() {
-  clearTimeout(state.dayTimeTimeoutId);
-  if (state.gameState !== "playing") return;
+export function switchDayTime(lobby: Lobby) {
+  clearTimeout(lobby.dayTimeTimeoutId);
+  if (lobby.gameState !== "playing") return;
 
   let duree = 4000;
 
-  if (state.isMorning) {
-    state.isMorning = false;
-    state.isNoon = true;
-    broadcast("isNoon", { players: Array.from(players.values()) });
+  if (lobby.isMorning) {
+    lobby.isMorning = false;
+    lobby.isNoon = true;
+    lobby.votesResolved = false; // nouveau round de vote qui démarre
+    broadcast(lobby, "isNoon", {
+      players: Array.from(lobby.players.values()),
+      duration: phaseDurations.isNoon,
+    });
     duree = phaseDurations.isNoon;
-    tpAllJoueurNoon();
-  } else if (state.isNoon) {
-    state.isNoon = false;
-    state.isAfternoon = true;
-    broadcast("isAfternoon");
+    tpAllJoueurNoon(lobby);
+  } else if (lobby.isNoon) {
+    if (!lobby.votesResolved) {
+      // Le chrono de vote (2 min) est arrivé à zéro sans que tout le monde
+      // ait voté : les joueurs n'ayant pas voté sont traités comme des
+      // abstentions (équivalent à un skip automatique), le vote est résolu
+      // avec les voix déjà exprimées.
+      checkVotesComplet(lobby);
+      lobby.votes = [""];
+      lobby.votesResolved = true;
+    }
+    lobby.isNoon = false;
+    lobby.isAfternoon = true;
+    broadcast(lobby, "isAfternoon");
     duree = phaseDurations.isAfternoon;
-  } else if (state.isAfternoon) {
-    state.isAfternoon = false;
-    state.isNight = true;
-    broadcast("isNight");
+  } else if (lobby.isAfternoon) {
+    lobby.isAfternoon = false;
+    lobby.isNight = true;
+    broadcast(lobby, "isNight");
     duree = phaseDurations.isNight;
-    tpAllJoueurNight();
-  } else if (state.isNight) {
-    state.isNight = false;
-    state.isMidnight = true;
-    broadcast("isMidnight");
+    tpAllJoueurNight(lobby);
+  } else if (lobby.isNight) {
+    lobby.isNight = false;
+    lobby.isMidnight = true;
+    broadcast(lobby, "isMidnight");
     duree = phaseDurations.isMidnight;
-  } else if (state.isMidnight) {
-    state.isMidnight = false;
-    state.isDawn = true;
-    broadcast("isDawn");
+  } else if (lobby.isMidnight) {
+    lobby.isMidnight = false;
+    lobby.isDawn = true;
+    broadcast(lobby, "isDawn");
     duree = phaseDurations.isDawn;
-  } else if (state.isDawn) {
-    state.isDawn = false;
-    state.isMorning = true;
-    broadcast("isMorning");
+  } else if (lobby.isDawn) {
+    lobby.isDawn = false;
+    lobby.isMorning = true;
+    broadcast(lobby, "isMorning");
     duree = phaseDurations.isMorning;
-    tpAllJoueurMorning();
+    tpAllJoueurMorning(lobby);
   }
 
-  state.dayTimeTimeoutId = setTimeout(() => switchDayTime(), duree);
+  lobby.dayTimeTimeoutId = setTimeout(() => switchDayTime(lobby), duree);
 }
 
-export function forceSwitchDayTime() {
-  if (state.dayTimeTimeoutId !== 0) {
-    clearTimeout(state.dayTimeTimeoutId);
-    state.dayTimeTimeoutId = 0;
+export function forceSwitchDayTime(lobby: Lobby) {
+  if (lobby.dayTimeTimeoutId !== 0) {
+    clearTimeout(lobby.dayTimeTimeoutId);
+    lobby.dayTimeTimeoutId = 0;
   }
-  switchDayTime();
+  switchDayTime(lobby);
 }
 
 // ==================== TÉLÉPORTATIONS ====================
 
-function tpAllJoueurNoon() {
+function tpAllJoueurNoon(lobby: Lobby) {
   const placeTable = [
     [1375, 275],
     [1600, 275],
@@ -295,36 +311,36 @@ function tpAllJoueurNoon() {
     [1550, 150],
   ];
   let i = 0;
-  players.forEach((player, playerId) => {
+  lobby.players.forEach((player, playerId) => {
     if (player.dead || player.isAdmin) return; // admins non téléportés
     const spawn = placeTable[i++];
     player.x = spawn[0];
     player.y = spawn[1];
-    sockets.get(playerId)?.send(
+    lobby.sockets.get(playerId)?.send(
       JSON.stringify({ type: "noonSpawn", x: spawn[0], y: spawn[1] }),
     );
   });
 }
 
-function tpAllJoueurMorning() {
-  players.forEach((player, playerId) => {
+function tpAllJoueurMorning(lobby: Lobby) {
+  lobby.players.forEach((player, playerId) => {
     if (player.dead || player.isAdmin) return;
     const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;
-    sockets.get(playerId)?.send(
+    lobby.sockets.get(playerId)?.send(
       JSON.stringify({ type: "morningSpawn", x: spawn.x, y: spawn.y }),
     );
   });
 }
 
-function tpAllJoueurNight() {
-  players.forEach((player, playerId) => {
+function tpAllJoueurNight(lobby: Lobby) {
+  lobby.players.forEach((player, playerId) => {
     if (player.dead || player.isAdmin) return;
     const spawn = getRandomSpawnPoint(2600, 2000, 750, 600);
     player.x = spawn.x;
     player.y = spawn.y;
-    sockets.get(playerId)?.send(
+    lobby.sockets.get(playerId)?.send(
       JSON.stringify({ type: "nightSpawn", x: spawn.x, y: spawn.y }),
     );
   });
@@ -332,16 +348,20 @@ function tpAllJoueurNight() {
 
 // ==================== COMBAT ====================
 
-export function sendKilled(playerId: string) {
+export function sendKilled(lobby: Lobby, playerId: string) {
   const data = JSON.stringify({ type: "killed", playerId });
-  sockets.forEach((client) => {
+  lobby.sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) client.send(data);
   });
 }
 
-export async function tryKill(attackerId: string, targetId: string) {
-  const attacker = players.get(attackerId);
-  const target = players.get(targetId);
+export async function tryKill(
+  lobby: Lobby,
+  attackerId: string,
+  targetId: string,
+) {
+  const attacker = lobby.players.get(attackerId);
+  const target = lobby.players.get(targetId);
   if (!attacker || !target) return;
   if (!attacker.active || !target.active) return;
   if (attacker.dead || target.dead) return;
@@ -352,69 +372,69 @@ export async function tryKill(attackerId: string, targetId: string) {
   if (Math.sqrt(dx * dx + dy * dy) > 60) return;
 
   target.dead = true;
-  sendKilled(targetId);
+  sendKilled(lobby, targetId);
 
-  forceSwitchDayTime();
+  forceSwitchDayTime(lobby);
 
-  const result = isEndGame();
+  const result = isEndGame(lobby);
   if (result !== "continue") {
-    broadcastGameEnd(result);
-    await closeGame();
+    broadcastGameEnd(lobby, result);
+    await closeGame(lobby);
   }
 }
 
 // ==================== ADMIN : KILL / KICK ====================
 
 /** Un admin tue un joueur vivant (ignoré si admin ou déjà mort). */
-export async function adminKill(targetId: string) {
-  const target = players.get(targetId);
+export async function adminKill(lobby: Lobby, targetId: string) {
+  const target = lobby.players.get(targetId);
   if (!target || target.dead || target.isAdmin) return;
 
   target.dead = true;
-  sendKilled(targetId);
+  sendKilled(lobby, targetId);
 
-  if (state.gameState === "playing") {
-    forceSwitchDayTime();
-    const result = isEndGame();
+  if (lobby.gameState === "playing") {
+    forceSwitchDayTime(lobby);
+    const result = isEndGame(lobby);
     if (result !== "continue") {
-      broadcastGameEnd(result);
-      await closeGame();
+      broadcastGameEnd(lobby, result);
+      await closeGame(lobby);
     }
   }
 }
 
 /** Un admin kick un joueur (vivant ou mort, mais pas un autre admin). */
-export function adminKick(targetId: string) {
-  const target = players.get(targetId);
+export function adminKick(lobby: Lobby, targetId: string) {
+  const target = lobby.players.get(targetId);
   if (!target || target.isAdmin) return;
 
-  const sock = sockets.get(targetId);
+  const sock = lobby.sockets.get(targetId);
   if (sock) {
     sock.send(JSON.stringify({ type: "kicked" }));
     sock.close(1008, "Kicked by admin");
   }
-  players.delete(targetId);
-  sockets.delete(targetId);
-  sendUpdatelobby();
+  lobby.players.delete(targetId);
+  lobby.sockets.delete(targetId);
+  sendUpdatelobby(lobby);
 }
 
-export function removeParfume() {
-  players.forEach((player) => {
+export function removeParfume(lobby: Lobby) {
+  lobby.players.forEach((player) => {
     player.isParfume = false;
   });
 }
 
 // ==================== VOTES ====================
 
-export function checkVotesComplet() {
+export function checkVotesComplet(lobby: Lobby) {
   let elimine = "";
   let nbVotesMax = 0;
   let draw = false;
-  let execo: [string] = [""];
+  let execo: string[] = [""];
 
-  alivePlayers().forEach((player) => {
+  alivePlayers(lobby).forEach((player) => {
     let nbVotes = 0;
-    votes.forEach((vote) => {
+    lobby.votes.forEach((vote) => {
       if (vote === player.id) nbVotes += 1;
     });
     if (nbVotes > nbVotesMax) {
@@ -430,91 +450,97 @@ export function checkVotesComplet() {
   });
 
   if (draw) {
-    sendVote(true, execo);
+    sendVote(lobby, true, execo);
     return;
   }
 
-  sendVote(false, execo, elimine);
+  sendVote(lobby, false, execo, elimine);
 
-  const target = players.get(elimine);
+  const target = lobby.players.get(elimine);
   if (target) target.dead = true;
 
-  const result = isEndGame();
+  const result = isEndGame(lobby);
   if (result !== "continue") {
-    broadcastGameEnd(result);
-    closeGame();
+    broadcastGameEnd(lobby, result);
+    closeGame(lobby);
   }
 }
 
-function sendVote(draw: boolean, tabExeco?: [string], player?: string) {
+function sendVote(
+  lobby: Lobby,
+  draw: boolean,
+  tabExeco?: string[],
+  player?: string,
+) {
   const data = draw
     ? JSON.stringify({ type: "vote", tabExeco, draw })
     : JSON.stringify({ type: "vote", player, draw });
-  sockets.forEach((client) => {
+  lobby.sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) client.send(data);
   });
 }
 
 // ==================== FIN DE PARTIE ====================
 
-export function isEndGame(): string {
-  if (state.finDePartie) return "continue";
+export function isEndGame(lobby: Lobby): string {
+  if (lobby.finDePartie) return "continue";
   let nbInnocent = 0, nbPsyco = 0;
-  // Ne compter que les joueurs vivants non-admin
-  alivePlayers().forEach((player) => {
+  alivePlayers(lobby).forEach((player) => {
     if (player.type === "innocent" || player.type === "petitefille") {
       nbInnocent += 1;
     } else if (player.type === "assassin") nbPsyco += 1;
   });
   if (nbPsyco <= 0) {
-    state.finDePartie = true;
+    lobby.finDePartie = true;
     return "vicInno";
   }
   if (nbPsyco > 0 && nbInnocent <= 1) {
-    state.finDePartie = true;
+    lobby.finDePartie = true;
     return "vicPsyco";
   }
   return "continue";
 }
 
-export function broadcastGameEnd(result: string) {
+export function broadcastGameEnd(lobby: Lobby, result: string) {
   const data = JSON.stringify({ type: "gameEnd", result });
-  sockets.forEach((client) => {
+  lobby.sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) client.send(data);
   });
-  setTimeout(() => resetToLobby(), 5000);
+  setTimeout(() => resetToLobby(lobby), 5000);
 }
 
-export async function closeGame() {
-  if (state.gameState === "playing") {
-    const result = isEndGame();
-    if (result !== "continue") broadcastGameEnd(result);
+export async function closeGame(lobby: Lobby) {
+  if (lobby.gameState === "playing") {
+    const result = isEndGame(lobby);
+    if (result !== "continue") broadcastGameEnd(lobby, result);
   }
   if (
-    players.size === 0 && state.gameState === "playing" && state.currentPartyId
+    lobby.players.size === 0 && lobby.gameState === "playing" &&
+    lobby.currentPartyId
   ) {
     try {
-      await fetchWithRetry(`${API_URL}/parties/${state.currentPartyId}/end`, {
+      await fetchWithRetry(`${API_URL}/parties/${lobby.currentPartyId}/end`, {
         method: "PATCH",
       });
-      console.log(`Partie ${state.currentPartyId} terminée`);
+      console.log(
+        `[lobby ${lobby.id}] Partie ${lobby.currentPartyId} terminée`,
+      );
     } catch (err) {
-      console.error("Erreur fermeture partie :", err);
+      console.error(`[lobby ${lobby.id}] Erreur fermeture partie :`, err);
     }
   }
-  if (players.size === 0) {
-    state.gameState = "noConnected";
-    state.currentPartyId = null;
+  if (lobby.players.size === 0) {
+    lobby.currentPartyId = null;
   }
 }
 
-export function resetToLobby() {
-  state.gameState = "lobby";
-  state.nbReady = 0;
-  state.currentPartyId = null;
-  state.finDePartie = false;
+export function resetToLobby(lobby: Lobby) {
+  lobby.gameState = "lobby";
+  lobby.nbReady = 0;
+  lobby.currentPartyId = null;
+  lobby.finDePartie = false;
 
-  players.forEach((player) => {
+  lobby.players.forEach((player) => {
     player.ready = false;
     player.active = false;
     player.type = undefined;
@@ -527,12 +553,16 @@ export function resetToLobby() {
     }
   });
 
-  state.isMorning = false;
-  state.isNoon = false;
-  state.isAfternoon = true;
-  state.isNight = false;
-  state.isMidnight = false;
-  state.isDawn = false;
+  lobby.isMorning = false;
+  lobby.isNoon = false;
+  lobby.isAfternoon = true;
+  lobby.isNight = false;
+  lobby.isMidnight = false;
+  lobby.isDawn = false;
 
-  sendUpdatelobby();
+  sendUpdatelobby(lobby);
+
+  // Le client (même lobby, même socket) doit reprendre l'écran d'attente
+  // sans recharger la page ni retourner à la sélection de lobby.
+  broadcast(lobby, "returnToLobby");
 }
