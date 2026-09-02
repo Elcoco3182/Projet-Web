@@ -97,13 +97,13 @@ class LobbyManager {
   listPublicLobbies(search = ""): LobbySummary[] {
     const term = search.trim().toLowerCase();
     return Array.from(this.lobbies.values())
-        .filter((l) => !l.passwordHash)
-        .filter((l) =>
-            !term ||
-            l.name.toLowerCase().includes(term) ||
-            l.id.toLowerCase().includes(term)
-        )
-        .map(toSummary);
+      .filter((l) => !l.passwordHash)
+      .filter((l) =>
+        !term ||
+        l.name.toLowerCase().includes(term) ||
+        l.id.toLowerCase().includes(term)
+      )
+      .map(toSummary);
   }
 
   /** Permet de vérifier qu'un lobby existe (y compris privé) avant de tenter un join. */

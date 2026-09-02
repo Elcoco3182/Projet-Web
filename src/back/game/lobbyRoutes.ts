@@ -3,7 +3,10 @@ import { Router } from "@oak/oak";
 import bcrypt from "@bcryptjs";
 import { lobbyManager } from "./lobby.ts";
 import { requireAuthJson } from "../auth/middleware.ts";
-import { validateLobbyName, validateLobbyPassword } from "../auth/validation.ts";
+import {
+  validateLobbyName,
+  validateLobbyPassword,
+} from "../auth/validation.ts";
 
 export const lobbyRouter = new Router();
 
@@ -61,7 +64,6 @@ lobbyRouter.post("/lobbies", requireAuthJson, async (ctx) => {
   };
 });
 
-
 // ── GET /lobbies?search= : lister les lobbies publics ───────────────────────
 lobbyRouter.get("/lobbies", requireAuthJson, (ctx) => {
   const search = ctx.request.url.searchParams.get("search") ?? "";
@@ -69,7 +71,6 @@ lobbyRouter.get("/lobbies", requireAuthJson, (ctx) => {
   ctx.response.status = 200;
   ctx.response.body = lobbyManager.listPublicLobbies(search);
 });
-
 
 // ── GET /lobbies/:id : vérifier l'existence du lobby ───────────────────────
 lobbyRouter.get("/lobbies/:id", requireAuthJson, (ctx) => {
@@ -87,74 +88,73 @@ lobbyRouter.get("/lobbies/:id", requireAuthJson, (ctx) => {
   ctx.response.body = info;
 });
 
-
 // ── POST /lobbies/:id/check-password ────────────────────────────────────────
 lobbyRouter.post(
-    "/lobbies/:id/check-password",
-    requireAuthJson,
-    async (ctx) => {
-      const lobbyId = ctx.params.id ?? "";
+  "/lobbies/:id/check-password",
+  requireAuthJson,
+  async (ctx) => {
+    const lobbyId = ctx.params.id ?? "";
 
-      const lobby = lobbyManager.getLobby(lobbyId);
+    const lobby = lobbyManager.getLobby(lobbyId);
 
-      // Le lobby n'existe pas
-      if (!lobby) {
-        ctx.response.status = 404;
-        ctx.response.body = {
-          error: "Ce lobby n'existe pas.",
-        };
-        return;
-      }
+    // Le lobby n'existe pas
+    if (!lobby) {
+      ctx.response.status = 404;
+      ctx.response.body = {
+        error: "Ce lobby n'existe pas.",
+      };
+      return;
+    }
 
-      // Lobby public
-      if (!lobby.passwordHash) {
-        ctx.response.status = 200;
-        ctx.response.body = {
-          ok: true,
-        };
-        return;
-      }
-
-      let body: { password?: string };
-
-      try {
-        body = await ctx.request.body.json();
-      } catch {
-        ctx.response.status = 400;
-        ctx.response.body = {
-          error: "Corps de requête JSON invalide.",
-        };
-        return;
-      }
-
-      const password = body.password ?? "";
-
-      // Pas de mot de passe
-      if (!password) {
-        ctx.response.status = 400;
-        ctx.response.body = {
-          error: "Ce lobby est privé, entre le mot de passe.",
-        };
-        return;
-      }
-
-      // Comparaison avec le hash enregistré
-      const valid = await bcrypt.compare(
-          password,
-          lobby.passwordHash,
-      );
-
-      if (!valid) {
-        ctx.response.status = 401;
-        ctx.response.body = {
-          error: "Le mot de passe rentré n'est pas valide.",
-        };
-        return;
-      }
-
+    // Lobby public
+    if (!lobby.passwordHash) {
       ctx.response.status = 200;
       ctx.response.body = {
         ok: true,
       };
-    },
+      return;
+    }
+
+    let body: { password?: string };
+
+    try {
+      body = await ctx.request.body.json();
+    } catch {
+      ctx.response.status = 400;
+      ctx.response.body = {
+        error: "Corps de requête JSON invalide.",
+      };
+      return;
+    }
+
+    const password = body.password ?? "";
+
+    // Pas de mot de passe
+    if (!password) {
+      ctx.response.status = 400;
+      ctx.response.body = {
+        error: "Ce lobby est privé, entre le mot de passe.",
+      };
+      return;
+    }
+
+    // Comparaison avec le hash enregistré
+    const valid = await bcrypt.compare(
+      password,
+      lobby.passwordHash,
+    );
+
+    if (!valid) {
+      ctx.response.status = 401;
+      ctx.response.body = {
+        error: "Le mot de passe rentré n'est pas valide.",
+      };
+      return;
+    }
+
+    ctx.response.status = 200;
+    ctx.response.body = {
+      ok: true,
+    };
+  },
 );

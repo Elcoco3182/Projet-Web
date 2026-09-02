@@ -74,9 +74,9 @@ export function createPlayerId(): string {
 }
 
 export function updatePlayer(
-    lobby: Lobby,
-    playerId: string,
-    data: { x: number; y: number; d: string },
+  lobby: Lobby,
+  playerId: string,
+  data: { x: number; y: number; d: string },
 ) {
   const player = lobby.players.get(playerId);
   if (player) {
@@ -87,10 +87,10 @@ export function updatePlayer(
 }
 
 export function activatePlayer(
-    lobby: Lobby,
-    playerId: string,
-    role: string,
-    spawn?: { x: number; y: number },
+  lobby: Lobby,
+  playerId: string,
+  role: string,
+  spawn?: { x: number; y: number },
 ) {
   const player = lobby.players.get(playerId);
   if (player) {
@@ -110,7 +110,9 @@ async function fetchPartiApi(lobby: Lobby) {
     });
     const partie = await partieRes.json();
     lobby.currentPartyId = partie.id;
-    console.log(`[lobby ${lobby.id}] Partie créée : id=${lobby.currentPartyId}`);
+    console.log(
+      `[lobby ${lobby.id}] Partie créée : id=${lobby.currentPartyId}`,
+    );
   } catch (err) {
     console.error(`[lobby ${lobby.id}] Impossible de créer la partie :`, err);
   }
@@ -178,15 +180,17 @@ async function giveRoleAll(lobby: Lobby) {
     const playerSocket = lobby.sockets.get(playerId);
     if (playerSocket?.readyState === WebSocket.OPEN) {
       playerSocket.send(
-          JSON.stringify({
-            type: "gameStart",
-            role,
-            startX: spawn.x,
-            startY: spawn.y,
-          }),
+        JSON.stringify({
+          type: "gameStart",
+          role,
+          startX: spawn.x,
+          startY: spawn.y,
+        }),
       );
     }
-    console.log(`[lobby ${lobby.id}] Joueur ${playerId} enregistré avec le rôle ${role}`);
+    console.log(
+      `[lobby ${lobby.id}] Joueur ${playerId} enregistré avec le rôle ${role}`,
+    );
   }
 
   // Notifier les admins que la partie a commencé (sans rôle)
@@ -201,7 +205,11 @@ async function giveRoleAll(lobby: Lobby) {
 
 // ==================== CYCLE JOUR/NUIT ====================
 
-function broadcast(lobby: Lobby, type: string, extra?: Record<string, unknown>) {
+function broadcast(
+  lobby: Lobby,
+  type: string,
+  extra?: Record<string, unknown>,
+) {
   const data = JSON.stringify({ type, ...extra });
   lobby.sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) client.send(data);
@@ -264,12 +272,30 @@ export function forceSwitchDayTime(lobby: Lobby) {
 
 function tpAllJoueurNoon(lobby: Lobby) {
   const placeTable = [
-    [1375, 275], [1600, 275], [1500, 375], [1500, 150],
-    [1375, 200], [1600, 200], [1425, 375], [1425, 150],
-    [1375, 250], [1600, 250], [1475, 150], [1475, 375],
-    [1375, 300], [1600, 300], [1525, 375], [1525, 150],
-    [1375, 225], [1600, 225], [1450, 150], [1450, 375],
-    [1375, 325], [1600, 325], [1550, 375], [1550, 150],
+    [1375, 275],
+    [1600, 275],
+    [1500, 375],
+    [1500, 150],
+    [1375, 200],
+    [1600, 200],
+    [1425, 375],
+    [1425, 150],
+    [1375, 250],
+    [1600, 250],
+    [1475, 150],
+    [1475, 375],
+    [1375, 300],
+    [1600, 300],
+    [1525, 375],
+    [1525, 150],
+    [1375, 225],
+    [1600, 225],
+    [1450, 150],
+    [1450, 375],
+    [1375, 325],
+    [1600, 325],
+    [1550, 375],
+    [1550, 150],
   ];
   let i = 0;
   lobby.players.forEach((player, playerId) => {
@@ -278,7 +304,7 @@ function tpAllJoueurNoon(lobby: Lobby) {
     player.x = spawn[0];
     player.y = spawn[1];
     lobby.sockets.get(playerId)?.send(
-        JSON.stringify({ type: "noonSpawn", x: spawn[0], y: spawn[1] }),
+      JSON.stringify({ type: "noonSpawn", x: spawn[0], y: spawn[1] }),
     );
   });
 }
@@ -290,7 +316,7 @@ function tpAllJoueurMorning(lobby: Lobby) {
     player.x = spawn.x;
     player.y = spawn.y;
     lobby.sockets.get(playerId)?.send(
-        JSON.stringify({ type: "morningSpawn", x: spawn.x, y: spawn.y }),
+      JSON.stringify({ type: "morningSpawn", x: spawn.x, y: spawn.y }),
     );
   });
 }
@@ -302,7 +328,7 @@ function tpAllJoueurNight(lobby: Lobby) {
     player.x = spawn.x;
     player.y = spawn.y;
     lobby.sockets.get(playerId)?.send(
-        JSON.stringify({ type: "nightSpawn", x: spawn.x, y: spawn.y }),
+      JSON.stringify({ type: "nightSpawn", x: spawn.x, y: spawn.y }),
     );
   });
 }
@@ -316,7 +342,11 @@ export function sendKilled(lobby: Lobby, playerId: string) {
   });
 }
 
-export async function tryKill(lobby: Lobby, attackerId: string, targetId: string) {
+export async function tryKill(
+  lobby: Lobby,
+  attackerId: string,
+  targetId: string,
+) {
   const attacker = lobby.players.get(attackerId);
   const target = lobby.players.get(targetId);
   if (!attacker || !target) return;
@@ -423,10 +453,15 @@ export function checkVotesComplet(lobby: Lobby) {
   }
 }
 
-function sendVote(lobby: Lobby, draw: boolean, tabExeco?: string[], player?: string) {
+function sendVote(
+  lobby: Lobby,
+  draw: boolean,
+  tabExeco?: string[],
+  player?: string,
+) {
   const data = draw
-      ? JSON.stringify({ type: "vote", tabExeco, draw })
-      : JSON.stringify({ type: "vote", player, draw });
+    ? JSON.stringify({ type: "vote", tabExeco, draw })
+    : JSON.stringify({ type: "vote", player, draw });
   lobby.sockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) client.send(data);
   });
@@ -467,14 +502,16 @@ export async function closeGame(lobby: Lobby) {
     if (result !== "continue") broadcastGameEnd(lobby, result);
   }
   if (
-      lobby.players.size === 0 && lobby.gameState === "playing" &&
-      lobby.currentPartyId
+    lobby.players.size === 0 && lobby.gameState === "playing" &&
+    lobby.currentPartyId
   ) {
     try {
       await fetchWithRetry(`${API_URL}/parties/${lobby.currentPartyId}/end`, {
         method: "PATCH",
       });
-      console.log(`[lobby ${lobby.id}] Partie ${lobby.currentPartyId} terminée`);
+      console.log(
+        `[lobby ${lobby.id}] Partie ${lobby.currentPartyId} terminée`,
+      );
     } catch (err) {
       console.error(`[lobby ${lobby.id}] Erreur fermeture partie :`, err);
     }
